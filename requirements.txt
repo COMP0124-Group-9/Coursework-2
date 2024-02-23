@@ -1,0 +1,3 @@
+autorom
+pettingzoo[atari]
+torch
