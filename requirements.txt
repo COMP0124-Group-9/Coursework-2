@@ -1,3 +1,4 @@
 autorom
 pettingzoo[atari]
 torch
+numpy
