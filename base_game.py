@@ -51,7 +51,7 @@ class Game:
         for player_area in player_areas:
             base_status = self.base_status(player_area)
             ball_boundary = self.ball_boundary(player_area)
-            paddle_boundary = self.ball_boundary(player_area)
+            paddle_boundary = self.paddle_boundary(player_area)
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status, ball_boundary, paddle_boundary, block_status)))
         # TODO correct ordering of these
