@@ -15,12 +15,13 @@ class Game:
     def reset(self,seed):
         self.env.reset(seed=seed)
 
-    def getPlayerArea(observation,agent):
+    def getPlayerArea(self,observation,agent):
         # crop to game player region, reflect so player is top left
         raise NotImplementedError()
 
     def parseObservation(self,observation):
-        player_area = getPlayerArea(observation,agent)
+        return observation
+        player_area = self.getPlayerArea(observation,agent)
         return observation
     
     def findBall(self, player_area):
