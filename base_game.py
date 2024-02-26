@@ -48,7 +48,7 @@ class Game:
     def paddle_boundary(player_area: np.ndarray) -> np.ndarray:
         return np.array([0, 0, 0, 0])
 
-    def parse_observation(self, observation: np.ndarray, agent_id: str):
+    def parse_observation(self, observation: np.ndarray, agent_id: str, time: int):
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(observation)
         player_statuses = []
@@ -71,24 +71,42 @@ class Game:
         else:
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
-        return np.concatenate((ordered_player_statuses, ball_boundary))
+        return np.concatenate((np.array([time]), ordered_player_statuses, ball_boundary))
 
     def get_agent_dict(self, env):
         return {agent_id: agent for agent_id, agent in zip(env.agents, self.agent_list)}
 
-    def get_action(self, agent_dict, agent, observation, info):
-        return agent_dict[agent].action(observation=self.parse_observation(observation, agent), info=info)
+    @staticmethod
+    def get_agent_times_dict(env):
+        return {agent_id: 0 for agent_id in env.agents}
+
+    def get_action(self, agent_dict, agent_times_dict, agent_id, observation, info):
+        assert info == {}
+        parsed_observation = self.parse_observation(observation=observation,
+                                                    agent_id=agent_id,
+                                                    time=agent_times_dict[agent_id]),
+        action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
+        agent_times_dict[agent_id] += 1
+        print({"Agent": agent_id, "Action": action, "Observation": parsed_observation, "Info": info})
+        assert isinstance(action, int)
+        assert 0 <= action <= 5
+        return action
 
     def run(self):
         env = warlords_v3.env(render_mode="human")
         env.reset(seed=42)
         agent_dict = self.get_agent_dict(env=env)
+        agent_times_dict = self.get_agent_times_dict(env=env)
         for agent in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
             if termination or truncation:
                 action = None
             else:
-                action = self.get_action(agent_dict=agent_dict, agent=agent, observation=observation, info=info)
+                action = self.get_action(agent_dict=agent_dict,
+                                         agent_times_dict=agent_times_dict,
+                                         agent_id=agent,
+                                         observation=observation,
+                                         info=info)
             env.step(action)
         env.close()
 
@@ -96,9 +114,11 @@ class Game:
         env = warlords_v3.parallel_env(render_mode="human")
         observations, infos = env.reset()
         agent_dict = self.get_agent_dict(env=env)
+        agent_times_dict = self.get_agent_times_dict(env=env)
         while env.agents:
             actions = {agent: self.get_action(agent_dict=agent_dict,
-                                              agent=agent,
+                                              agent_times_dict=agent_times_dict,
+                                              agent_id=agent,
                                               observation=observations[agent],
                                               info=infos[agent])
                        for agent in env.agents}
