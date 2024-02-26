@@ -1,4 +1,3 @@
-import numpy
 import numpy as np
 
 
@@ -20,7 +19,7 @@ class Agent:
     def q(self, observation: np.ndarray, action: int):
         assert observation.shape == (self.__expected_observation_length,)
         assert action in self.__possible_actions
-        nn_input = numpy.append(observation, action)
+        nn_input = np.append(observation, action)
         assert nn_input.shape == (self.__expected_observation_length + 1,)
         utility = np.array(0)  # TODO replace this line: pass to NN and attain a single value utility
         assert utility.shape == ()

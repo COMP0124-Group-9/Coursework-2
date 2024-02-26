@@ -1,5 +1,5 @@
 from Agent import Agent
-from base_game import Game
+from Game import Game
 
 
 def main():

@@ -1,5 +1,4 @@
-import typing
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 import numpy as np
 from pettingzoo.atari import warlords_v3
@@ -8,7 +7,7 @@ from Agent import Agent
 
 
 class Game:
-    def __init__(self, agent_list: typing.List[Agent]) -> None:
+    def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
         self.number_rounds = 0
 
