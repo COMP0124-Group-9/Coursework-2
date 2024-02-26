@@ -1,5 +1,5 @@
 import typing
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 from pettingzoo.atari import warlords_v3
@@ -48,7 +48,7 @@ class Game:
     def paddle_boundary(player_area: np.ndarray) -> np.ndarray:
         return np.array([0, 0, 0, 0])
 
-    def parse_observation(self, observation: np.ndarray, agent_id: str, time: int):
+    def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(observation)
         player_statuses = []
@@ -71,16 +71,23 @@ class Game:
         else:
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
-        return np.concatenate((np.array([time]), ordered_player_statuses, ball_boundary))
+        parsed_observation = np.concatenate((np.array([time]), ordered_player_statuses, ball_boundary))
+        assert parsed_observation.ndim == 1
+        return parsed_observation
 
-    def get_agent_dict(self, env):
+    def get_agent_dict(self, env) -> Dict[str, Agent]:
         return {agent_id: agent for agent_id, agent in zip(env.agents, self.agent_list)}
 
     @staticmethod
-    def get_agent_times_dict(env):
+    def get_agent_times_dict(env) -> Dict[str, int]:
         return {agent_id: 0 for agent_id in env.agents}
 
-    def get_action(self, agent_dict, agent_times_dict, agent_id, observation, info):
+    def get_action(self,
+                   agent_dict: Dict[str, Agent],
+                   agent_times_dict: Dict[str, int],
+                   agent_id: str,
+                   observation: np.ndarray,
+                   info: dict) -> int:
         assert info == {}
         parsed_observation = self.parse_observation(observation=observation,
                                                     agent_id=agent_id,
@@ -92,7 +99,7 @@ class Game:
         assert 0 <= action <= 5
         return action
 
-    def run(self):
+    def run(self) -> None:
         env = warlords_v3.env(render_mode="human")
         env.reset(seed=42)
         agent_dict = self.get_agent_dict(env=env)
@@ -110,7 +117,7 @@ class Game:
             env.step(action)
         env.close()
 
-    def run_parallel(self):
+    def run_parallel(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human")
         observations, infos = env.reset()
         agent_dict = self.get_agent_dict(env=env)
