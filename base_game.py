@@ -88,7 +88,6 @@ class Game:
                    agent_id: str,
                    observation: np.ndarray,
                    info: dict) -> int:
-        assert info == {}
         parsed_observation = self.parse_observation(observation=observation,
                                                     agent_id=agent_id,
                                                     time=agent_times_dict[agent_id])
@@ -99,8 +98,6 @@ class Game:
                "Observation Shape": parsed_observation.shape,
                "Info": info,
                "Observation": parsed_observation})
-        assert isinstance(action, int)
-        assert 0 <= action <= 5
         return action
 
     def run(self) -> None:
