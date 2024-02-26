@@ -13,16 +13,19 @@ class Game:
         self.number_rounds = 0
 
     @staticmethod
-    def get_player_areas(observation: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        cropped_area = observation[16:-28, :, :]
-        play_area_shape = cropped_area.shape
+    def get_game_area(observation: np.ndarray) -> np.ndarray:
+        return observation[16:-28, :, :]
+
+    @staticmethod
+    def get_player_areas(game_area: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        play_area_shape = game_area.shape
         assert play_area_shape[0] % 2 == 0
         assert play_area_shape[1] % 2 == 0
         quadrant_height, quadrant_width = [play_area_shape[0] // 2, play_area_shape[1] // 2]
-        return (cropped_area[:quadrant_height, :quadrant_width],
-                np.flip(cropped_area[quadrant_height:, :quadrant_width], axis=0),
-                np.flip(cropped_area[:quadrant_height, quadrant_width:], axis=1),
-                np.flip(cropped_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
+        return (game_area[:quadrant_height, :quadrant_width],
+                np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
+                np.flip(game_area[:quadrant_height, quadrant_width:], axis=1),
+                np.flip(game_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
 
     @staticmethod
     def block_statuses(player_area: np.ndarray) -> np.ndarray:
@@ -46,24 +49,29 @@ class Game:
         return np.array([0, 0, 0, 0])
 
     def parse_observation(self, observation: np.ndarray, agent_id: str):
+        game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(observation)
         player_statuses = []
         for player_area in player_areas:
             base_status = self.base_status(player_area)
-            ball_boundary = self.ball_boundary(player_area)
             paddle_boundary = self.paddle_boundary(player_area)
             block_status = self.block_statuses(player_area)
-            player_statuses.append(np.concatenate((base_status, ball_boundary, paddle_boundary, block_status)))
-        # TODO correct ordering of these
+            player_statuses.append(np.concatenate((base_status, paddle_boundary, block_status)))
+        ball_boundary = self.ball_boundary(game_area)
+        # TODO correct ordering of these and transform ball boundary
         if agent_id == "first_0":
-            new_observation = np.concatenate(player_statuses)
+            ball_boundary = ball_boundary
+            ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
-            new_observation = np.concatenate(player_statuses)
+            ball_boundary = ball_boundary
+            ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "third_0":
-            new_observation = np.concatenate(player_statuses)
+            ball_boundary = ball_boundary
+            ordered_player_statuses = np.concatenate(player_statuses)
         else:
-            new_observation = np.concatenate(player_statuses)
-        return new_observation
+            ball_boundary = ball_boundary
+            ordered_player_statuses = np.concatenate(player_statuses)
+        return np.concatenate((ordered_player_statuses, ball_boundary))
 
     def get_agent_dict(self, env):
         return {agent_id: agent for agent_id, agent in zip(env.agents, self.agent_list)}
