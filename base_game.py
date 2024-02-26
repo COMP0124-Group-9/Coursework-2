@@ -71,7 +71,7 @@ class Game:
         else:
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
-        parsed_observation = np.concatenate((np.array([time]), ordered_player_statuses, ball_boundary))
+        parsed_observation = np.concatenate((ordered_player_statuses, ball_boundary, np.array([time])))
         assert parsed_observation.ndim == 1
         return parsed_observation
 
@@ -91,10 +91,14 @@ class Game:
         assert info == {}
         parsed_observation = self.parse_observation(observation=observation,
                                                     agent_id=agent_id,
-                                                    time=agent_times_dict[agent_id]),
+                                                    time=agent_times_dict[agent_id])
         action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
         agent_times_dict[agent_id] += 1
-        print({"Agent": agent_id, "Action": action, "Observation": parsed_observation, "Info": info})
+        print({"Agent": agent_id,
+               "Action": action,
+               "Observation Shape": parsed_observation.shape,
+               "Info": info,
+               "Observation": parsed_observation})
         assert isinstance(action, int)
         assert 0 <= action <= 5
         return action
