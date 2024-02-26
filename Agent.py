@@ -1,10 +1,27 @@
-import random
+import numpy
+import numpy as np
 
 
 class Agent:
+    __expected_observation_length = 5913
+    __possible_actions = np.arange(0, 6)
+
     def __init__(self):
         self.win_count = 0
         self.position = 0
 
     def action(self, observation, info):
-        return random.randint(0, 5)
+        assert observation.shape == (self.__expected_observation_length,)
+        assert info == {}
+        action = np.random.choice(self.__possible_actions)  # TODO Replace this with Q-learning using self.q for Q(s, a)
+        assert action in self.__possible_actions
+        return action
+
+    def q(self, observation: np.ndarray, action: int):
+        assert observation.shape == (self.__expected_observation_length,)
+        assert action in self.__possible_actions
+        nn_input = numpy.append(observation, action)
+        assert nn_input.shape == (self.__expected_observation_length + 1,)
+        utility = np.array(0)  # TODO replace this line: pass to NN and attain a single value utility
+        assert utility.shape == ()
+        return utility
