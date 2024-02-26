@@ -50,7 +50,7 @@ class Game:
 
     def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
         game_area = self.get_game_area(observation)
-        player_areas = self.get_player_areas(observation)
+        player_areas = self.get_player_areas(game_area)
         player_statuses = []
         for player_area in player_areas:
             base_status = self.base_status(player_area)
