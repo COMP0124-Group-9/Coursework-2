@@ -69,7 +69,6 @@ class Game:
     def base_status(self, player_area: np.ndarray) -> np.ndarray:
         # Base is destroyed if not enough coloured pixels in area. True if base exists, false otherwise
         status = np.array([self.bool_blocks(area=player_area[0:16, 0:28, :]).sum() >= self._min_base_pixels])
-        print(status)
         assert status.shape == (1,)
         return status
 
