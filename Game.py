@@ -19,6 +19,7 @@ class Game:
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
         self.__previous_paddle_boundaries = [np.zeros(4) - 1 for _ in range(4)]
+        self.__previous_ball_boundaries = [np.zeros(4) - 1 for _ in range(4)]
 
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
@@ -79,7 +80,7 @@ class Game:
 
     @staticmethod
     def ball_boundary(player_area: np.ndarray) -> np.ndarray:
-        return np.array([0, 0, 0, 0])
+        return np.zeros(4) - 1
 
     def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
         player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
@@ -109,23 +110,36 @@ class Game:
                                                    paddle_boundary,
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
-        # TODO correct ordering of these and transform ball boundary
+        # TODO correct ball boundary transform
         if agent_id == "first_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[0]
             ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[0] = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[1]
             ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[1] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
                                                       player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[2]
             ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[2] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
                                                       player_statuses[0], player_statuses[1]))
-        else:
+        elif agent_id == "fourth_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[3]
             ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[3] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
                                                       player_statuses[1], player_statuses[0]))
-        parsed_observation = np.concatenate((ordered_player_statuses, ball_boundary, np.array([time])))
+        else:
+            raise Exception
+        parsed_observation = np.concatenate((ordered_player_statuses,
+                                             previous_ball_boundary,
+                                             ball_boundary,
+                                             np.array([time])))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 

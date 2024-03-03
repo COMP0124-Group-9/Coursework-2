@@ -1,6 +1,6 @@
 import numpy as np
 
-EXPECTED_OBSERVATION_LENGTH = 137
+EXPECTED_OBSERVATION_LENGTH = 141
 
 
 class Agent:
