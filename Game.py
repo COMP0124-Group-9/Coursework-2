@@ -3,13 +3,16 @@ from typing import Tuple, Dict, List
 import numpy as np
 from pettingzoo.atari import warlords_v3
 
-from Agent import Agent
+from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
 
 class Game:
+    _block_width = 8
+    _block_height = 8
+    _small_block_width = 4
+
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
-        self.number_rounds = 0
 
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
@@ -27,11 +30,32 @@ class Game:
                 np.flip(game_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
 
     @staticmethod
-    def block_statuses(player_area: np.ndarray) -> np.ndarray:
-        # TODO can be simplified per block, not per pixel
-        segment_1 = player_area[16:40, 0:28, :].reshape(-1, 3)
-        segment_2 = player_area[0:40, 28:48, :].reshape(-1, 3)
-        return np.sign(np.concatenate((segment_1, segment_2)).sum(axis=-1))
+    def process_blocks(segment: np.ndarray, block_height: int, block_width: int) -> List[bool]:
+        block_statuses: List[bool] = []
+        segment_height, segment_width, _ = segment.shape
+        assert segment_height % block_height == 0
+        assert segment_width % block_width == 0
+        for segment_column in np.split(segment, segment.shape[0] // block_height, axis=0):
+            for block in np.split(segment_column, segment_column.shape[1] // block_width, axis=1):
+                assert block.shape == (block_height, block_width, 3)
+                block_statuses.append(np.all(block))
+        return block_statuses
+
+    def block_statuses(self, player_area: np.ndarray) -> np.ndarray:
+        block_statuses: List[bool] = []
+        # Bottom segment
+        block_statuses += self.process_blocks(segment=player_area[16:40, 0:48, :],
+                                              block_height=self._block_height,
+                                              block_width=self._block_width)
+        # Top segment
+        block_statuses += self.process_blocks(segment=player_area[0:16, 32:48, :],
+                                              block_height=self._block_height,
+                                              block_width=self._block_width)
+        # Small segment
+        block_statuses += self.process_blocks(segment=player_area[0:16, 28:32, :],
+                                              block_height=self._block_height,
+                                              block_width=self._small_block_width)
+        return np.array(block_statuses)
 
     @staticmethod
     def base_status(player_area: np.ndarray) -> np.ndarray:
@@ -71,7 +95,7 @@ class Game:
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
         parsed_observation = np.concatenate((ordered_player_statuses, ball_boundary, np.array([time])))
-        assert parsed_observation.ndim == 1
+        assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
     def get_agent_dict(self, env) -> Dict[str, Agent]:
