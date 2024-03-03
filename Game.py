@@ -18,6 +18,7 @@ class Game:
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
+        self.__previous_paddle_boundaries = [np.zeros(4) - 1 for _ in range(4)]
 
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
@@ -99,9 +100,14 @@ class Game:
         player_statuses = []
         for player_index, player_area in enumerate(player_areas):
             base_status = self.base_status(player_area)
+            previous_paddle_boundary = self.__previous_paddle_boundaries[player_index]
             paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
+            self.__previous_paddle_boundaries[player_index] = paddle_boundary
             block_status = self.block_statuses(player_area)
-            player_statuses.append(np.concatenate((base_status, paddle_boundary, block_status)))
+            player_statuses.append(np.concatenate((base_status,
+                                                   previous_paddle_boundary,
+                                                   paddle_boundary,
+                                                   block_status)))
         ball_boundary = self.ball_boundary(game_area)
         # TODO correct ordering of these and transform ball boundary
         if agent_id == "first_0":
