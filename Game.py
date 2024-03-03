@@ -10,6 +10,7 @@ class Game:
     _block_width = 8
     _block_height = 8
     _small_block_width = 4
+    _min_base_pixels = 32
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
@@ -58,10 +59,19 @@ class Game:
         return np.array(block_statuses)
 
     @staticmethod
-    def base_status(player_area: np.ndarray) -> np.ndarray:
-        # Base is destroyed if all black pixels. True if base exists, false otherwise
-        base = player_area[0:16, 0:28, :]
-        return np.array([np.any(base)])
+    def bool_blocks(area: np.ndarray) -> np.ndarray:
+        # Boolean whether coordinate contains a block or not (0 or 1)
+        assert area.shape[-1] == 3
+        result = np.greater(np.abs(area).sum(-1), 0)
+        assert result.shape == area.shape[:-1]
+        return result
+
+    def base_status(self, player_area: np.ndarray) -> np.ndarray:
+        # Base is destroyed if not enough coloured pixels in area. True if base exists, false otherwise
+        status = np.array([self.bool_blocks(area=player_area[0:16, 0:28, :]).sum() >= self._min_base_pixels])
+        print(status)
+        assert status.shape == (1,)
+        return status
 
     @staticmethod
     def ball_boundary(player_area: np.ndarray) -> np.ndarray:
