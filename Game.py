@@ -11,6 +11,10 @@ class Game:
     _block_height = 8
     _small_block_width = 4
     _min_base_pixels = 32
+    _player_colours = np.array([[195, 144, 61],
+                                [82, 126, 45],
+                                [45, 109, 152],
+                                [104, 25, 154]])
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
@@ -76,17 +80,26 @@ class Game:
     def ball_boundary(player_area: np.ndarray) -> np.ndarray:
         return np.array([0, 0, 0, 0])
 
-    @staticmethod
-    def paddle_boundary(player_area: np.ndarray) -> np.ndarray:
-        return np.array([0, 0, 0, 0])
+    def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
+        player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
+        assert player_coloured_pixels.shape == player_area.shape[:-1]
+        player_coloured_pixels[:40, :48] = False
+        xs, ys = np.where(player_coloured_pixels)
+        if xs.shape == (0,) or ys.shape == (0,):
+            # Paddle out of play
+            result = np.zeros(4) - 1
+        else:
+            result = np.array([xs.min(), ys.min(), xs.max(), ys.max()])
+        assert result.shape == (4,)
+        return result
 
     def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
-        for player_area in player_areas:
+        for player_index, player_area in enumerate(player_areas):
             base_status = self.base_status(player_area)
-            paddle_boundary = self.paddle_boundary(player_area)
+            paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status, paddle_boundary, block_status)))
         ball_boundary = self.ball_boundary(game_area)
