@@ -18,6 +18,7 @@ class Game:
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
+        # TODO storing these here is messy and won't work in parallel
         self.__previous_paddle_boundaries = [np.zeros(4) - 1 for _ in range(4)]
         self.__previous_ball_boundaries = [np.zeros(4) - 1 for _ in range(4)]
 
@@ -103,7 +104,9 @@ class Game:
             base_status = self.base_status(player_area)
             previous_paddle_boundary = self.__previous_paddle_boundaries[player_index]
             paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
-            self.__previous_paddle_boundaries[player_index] = paddle_boundary
+            # TODO this is messy and won't work in parallel
+            if agent_id == "fourth_0":
+                self.__previous_paddle_boundaries[player_index] = paddle_boundary
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status,
                                                    previous_paddle_boundary,
