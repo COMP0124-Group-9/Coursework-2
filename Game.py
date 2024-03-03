@@ -12,8 +12,8 @@ class Game:
     _small_block_width = 4
     _min_base_pixels = 32
     _player_colours = np.array([[195, 144, 61],
-                                [82, 126, 45],
                                 [45, 109, 152],
+                                [82, 126, 45],
                                 [104, 25, 154]])
 
     def __init__(self, agent_list: List[Agent]) -> None:
@@ -31,8 +31,8 @@ class Game:
         assert play_area_shape[1] % 2 == 0
         quadrant_height, quadrant_width = [play_area_shape[0] // 2, play_area_shape[1] // 2]
         return (game_area[:quadrant_height, :quadrant_width],
-                np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
                 np.flip(game_area[:quadrant_height, quadrant_width:], axis=1),
+                np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
                 np.flip(game_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
 
     @staticmethod
@@ -115,13 +115,16 @@ class Game:
             ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
             ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
+            ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
+                                                      player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
             ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
+            ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
+                                                      player_statuses[0], player_statuses[1]))
         else:
             ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
+            ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
+                                                      player_statuses[1], player_statuses[0]))
         parsed_observation = np.concatenate((ordered_player_statuses, ball_boundary, np.array([time])))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
