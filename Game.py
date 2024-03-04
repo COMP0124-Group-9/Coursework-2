@@ -3,13 +3,26 @@ from typing import Tuple, Dict, List
 import numpy as np
 from pettingzoo.atari import warlords_v3
 
-from Agent import Agent
+from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
 
 class Game:
+    _block_width = 8
+    _block_height = 8
+    _small_block_width = 4
+    _min_base_pixels = 32
+    _player_colours = np.array([[195, 144, 61],
+                                [45, 109, 152],
+                                [82, 126, 45],
+                                [104, 25, 154]])
+    _ball_colour = np.array([200, 72, 72])
+    _ball_width = 2
+
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
-        self.number_rounds = 0
+        # TODO storing these here is messy and won't work in parallel
+        self.__previous_paddle_boundaries = [np.zeros(4) - 1 for _ in range(4)]
+        self.__previous_ball_boundaries = [np.zeros(4) - 1 for _ in range(4)]
 
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
@@ -22,56 +35,127 @@ class Game:
         assert play_area_shape[1] % 2 == 0
         quadrant_height, quadrant_width = [play_area_shape[0] // 2, play_area_shape[1] // 2]
         return (game_area[:quadrant_height, :quadrant_width],
-                np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
                 np.flip(game_area[:quadrant_height, quadrant_width:], axis=1),
+                np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
                 np.flip(game_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
 
     @staticmethod
-    def block_statuses(player_area: np.ndarray) -> np.ndarray:
-        # TODO can be simplified per block, not per pixel
-        segment_1 = player_area[16:40, 0:28, :].reshape(-1, 3)
-        segment_2 = player_area[0:40, 28:48, :].reshape(-1, 3)
-        return np.sign(np.concatenate((segment_1, segment_2)).sum(axis=-1))
+    def process_blocks(segment: np.ndarray, block_height: int, block_width: int) -> List[bool]:
+        block_statuses: List[bool] = []
+        segment_height, segment_width, _ = segment.shape
+        assert segment_height % block_height == 0
+        assert segment_width % block_width == 0
+        for segment_column in np.split(segment, segment.shape[0] // block_height, axis=0):
+            for block in np.split(segment_column, segment_column.shape[1] // block_width, axis=1):
+                assert block.shape == (block_height, block_width, 3)
+                block_statuses.append(np.all(block))
+        return block_statuses
+
+    def block_statuses(self, player_area: np.ndarray) -> np.ndarray:
+        block_statuses: List[bool] = []
+        # Bottom segment
+        block_statuses += self.process_blocks(segment=player_area[16:40, 0:48, :],
+                                              block_height=self._block_height,
+                                              block_width=self._block_width)
+        # Top segment
+        block_statuses += self.process_blocks(segment=player_area[0:16, 32:48, :],
+                                              block_height=self._block_height,
+                                              block_width=self._block_width)
+        # Small segment
+        block_statuses += self.process_blocks(segment=player_area[0:16, 28:32, :],
+                                              block_height=self._block_height,
+                                              block_width=self._small_block_width)
+        return np.array(block_statuses)
 
     @staticmethod
-    def base_status(player_area: np.ndarray) -> np.ndarray:
-        # Base is destroyed if all black pixels. True if base exists, false otherwise
-        base = player_area[0:16, 0:28, :]
-        return np.array([np.any(base)])
+    def bool_blocks(area: np.ndarray) -> np.ndarray:
+        # Boolean whether coordinate contains a block or not (0 or 1)
+        assert area.shape[-1] == 3
+        result = np.greater(np.abs(area).sum(-1), 0)
+        assert result.shape == area.shape[:-1]
+        return result
 
-    @staticmethod
-    def ball_boundary(player_area: np.ndarray) -> np.ndarray:
-        return np.array([0, 0, 0, 0])
+    def base_status(self, player_area: np.ndarray) -> np.ndarray:
+        # Base is destroyed if not enough coloured pixels in area. True if base exists, false otherwise
+        status = np.array([self.bool_blocks(area=player_area[0:16, 0:28, :]).sum() >= self._min_base_pixels])
+        assert status.shape == (1,)
+        return status
 
-    @staticmethod
-    def paddle_boundary(player_area: np.ndarray) -> np.ndarray:
-        return np.array([0, 0, 0, 0])
+    def ball_boundary(self, game_area: np.ndarray) -> np.ndarray:
+        ball_coloured_pixels = np.all(game_area == self._ball_colour, axis=-1)
+        assert ball_coloured_pixels.shape == game_area.shape[:-1]
+        column_sums = ball_coloured_pixels.sum(axis=0)
+        ball_columns = np.argwhere(np.logical_and(column_sums != 0,
+                                                  np.logical_and(column_sums != self._block_height,
+                                                                 column_sums != 2 * self._block_height))).flatten()
+        if ball_columns.shape == (2,):
+            row_sums = ball_coloured_pixels.sum(axis=-1)
+            ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
+            return np.array([ball_columns.min(), ball_rows.min(), ball_columns.max(), ball_rows.max()])
+        else:
+            return np.zeros(4) - 1
+
+    def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
+        player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
+        assert player_coloured_pixels.shape == player_area.shape[:-1]
+        player_coloured_pixels[:40, :48] = False
+        xs, ys = np.where(player_coloured_pixels)
+        if xs.shape == (0,) or ys.shape == (0,):
+            # Paddle out of play
+            result = np.zeros(4) - 1
+        else:
+            result = np.array([xs.min(), ys.min(), xs.max(), ys.max()])
+        assert result.shape == (4,)
+        return result
 
     def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
-        for player_area in player_areas:
+        for player_index, player_area in enumerate(player_areas):
             base_status = self.base_status(player_area)
-            paddle_boundary = self.paddle_boundary(player_area)
+            previous_paddle_boundary = self.__previous_paddle_boundaries[player_index]
+            paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
+            # TODO this is messy and won't work in parallel
+            if agent_id == "fourth_0":
+                self.__previous_paddle_boundaries[player_index] = paddle_boundary
             block_status = self.block_statuses(player_area)
-            player_statuses.append(np.concatenate((base_status, paddle_boundary, block_status)))
+            player_statuses.append(np.concatenate((base_status,
+                                                   previous_paddle_boundary,
+                                                   paddle_boundary,
+                                                   block_status)))
         ball_boundary = self.ball_boundary(game_area)
-        # TODO correct ordering of these and transform ball boundary
+        # TODO correct ball boundary transform
         if agent_id == "first_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[0]
             ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[0] = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[1]
             ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
+            self.__previous_ball_boundaries[1] = ball_boundary
+            ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
+                                                      player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[2]
             ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
+            self.__previous_ball_boundaries[2] = ball_boundary
+            ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
+                                                      player_statuses[0], player_statuses[1]))
+        elif agent_id == "fourth_0":
+            previous_ball_boundary = self.__previous_ball_boundaries[3]
+            ball_boundary = ball_boundary
+            self.__previous_ball_boundaries[3] = ball_boundary
+            ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
+                                                      player_statuses[1], player_statuses[0]))
         else:
-            ball_boundary = ball_boundary
-            ordered_player_statuses = np.concatenate(player_statuses)
-        parsed_observation = np.concatenate((ordered_player_statuses, ball_boundary, np.array([time])))
-        assert parsed_observation.ndim == 1
+            raise Exception
+        parsed_observation = np.concatenate((ordered_player_statuses,
+                                             previous_ball_boundary,
+                                             ball_boundary,
+                                             np.array([time])))
+        assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
     def get_agent_dict(self, env) -> Dict[str, Agent]:

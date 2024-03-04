@@ -1,8 +1,10 @@
 import numpy as np
 
+EXPECTED_OBSERVATION_LENGTH = 141
+
 
 class Agent:
-    __expected_observation_length = 5913
+    __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
     __possible_actions = np.arange(0, 6)
 
     def __init__(self):
