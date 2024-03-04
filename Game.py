@@ -15,6 +15,8 @@ class Game:
                                 [45, 109, 152],
                                 [82, 126, 45],
                                 [104, 25, 154]])
+    _ball_colour = np.array([200, 72, 72])
+    _ball_width = 2
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
@@ -79,9 +81,19 @@ class Game:
         assert status.shape == (1,)
         return status
 
-    @staticmethod
-    def ball_boundary(player_area: np.ndarray) -> np.ndarray:
-        return np.zeros(4) - 1
+    def ball_boundary(self, game_area: np.ndarray) -> np.ndarray:
+        ball_coloured_pixels = np.all(game_area == self._ball_colour, axis=-1)
+        assert ball_coloured_pixels.shape == game_area.shape[:-1]
+        column_sums = ball_coloured_pixels.sum(axis=0)
+        ball_columns = np.argwhere(np.logical_and(column_sums != 0,
+                                                  np.logical_and(column_sums != self._block_height,
+                                                                 column_sums != 2 * self._block_height))).flatten()
+        if ball_columns.shape == (0,):
+            return np.zeros(4) - 1
+        else:
+            row_sums = ball_coloured_pixels.sum(axis=-1)
+            ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
+            return np.array([ball_columns.min(), ball_rows.min(), ball_columns.max(), ball_rows.max()])
 
     def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
         player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
