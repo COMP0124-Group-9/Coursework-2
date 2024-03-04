@@ -7,9 +7,16 @@ class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
     __possible_actions = np.arange(0, 6)
 
-    def __init__(self):
+    def __init__(self, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
         self.win_count = 0
         self.position = 0
+        self.__reward_vector = reward_vector
+        assert self.__reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
+
+    def reward(self, observation: np.ndarray) -> np.ndarray:
+        reward = (self.__reward_vector @ observation).sum()
+        assert reward.shape == (1,)
+        return reward
 
     def action(self, observation, info):
         assert observation.shape == (self.__expected_observation_length,)
