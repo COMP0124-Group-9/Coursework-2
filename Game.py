@@ -176,11 +176,11 @@ class Game:
                                                     time=agent_times_dict[agent_id])
         action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
         agent_times_dict[agent_id] += 1
-        print({"Agent": agent_id,
-               "Action": action,
-               "Observation Shape": parsed_observation.shape,
-               "Info": info,
-               "Observation": parsed_observation})
+        # print({"Agent": agent_id,
+        #        "Action": action,
+        #        "Observation Shape": parsed_observation.shape,
+        #        "Info": info,
+        #        "Observation": parsed_observation})
         return action
 
     def run(self) -> None:
@@ -190,6 +190,7 @@ class Game:
         agent_times_dict = self.get_agent_times_dict(env=env)
         for agent in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
+            
             if termination or truncation:
                 action = None
             else:
@@ -199,7 +200,9 @@ class Game:
                                          observation=observation,
                                          info=info)
             env.step(action)
+
         env.close()
+
 
     def run_parallel(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human")
@@ -207,11 +210,33 @@ class Game:
         agent_dict = self.get_agent_dict(env=env)
         agent_times_dict = self.get_agent_times_dict(env=env)
         while env.agents:
-            actions = {agent: self.get_action(agent_dict=agent_dict,
+            
+            last_observations_parsed = {}
+            actions = {}
+
+            for agent in env.agents:
+                last_observation_parsed = self.parse_observation(observation=observations[agent],
+                                                          agent_id=agent,
+                                                          time=agent_times_dict[agent]) 
+                last_observations_parsed[agent] = last_observation_parsed
+                action = self.get_action(agent_dict=agent_dict,
                                               agent_times_dict=agent_times_dict,
                                               agent_id=agent,
                                               observation=observations[agent],
                                               info=infos[agent])
-                       for agent in env.agents}
+                actions[agent] = action
+            
             observations, rewards, terminations, truncations, infos = env.step(actions)
+
+            for agent in env.agents:
+                next_observation_parsed = self.parse_observation(observation=observations[agent],
+                                                          agent_id=agent,
+                                                          time=agent_times_dict[agent])
+                last_observation_parsed = last_observations_parsed[agent]
+                action = actions[agent]
+                reward = rewards[agent]
+                termination =  terminations[agent]
+                agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed, termination)
+                agent_dict[agent].train()
+
         env.close()

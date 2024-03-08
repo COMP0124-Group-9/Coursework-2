@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import numpy as np
 
 ####### State Input ###########
@@ -16,7 +15,7 @@ class QNetworkFC(nn.Module):
         self.fc2 = nn.Linear(512, num_actions)
 
     def forward(self, x):
-        x = x.view(-1, self.input_size)  # Flatten the input
+        x = x.view(-1, self.input_shape)  # Flatten the input
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -28,7 +27,7 @@ class QNetworkCNN(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
         self.fc1 = nn.Linear(64 * 7 * 7, 512)
-        self.fc2 = nn.Linear(512, num_actions)
+        self.fc2 = nn.Linear(512, output_dim)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -75,11 +74,11 @@ class QNetworkCNNAS(nn.Module):
 if __name__ == "__main__":
 
     
-    input_shape = 
+    input_shape = 141
     num_actions = 6
     learning_rate = 1e-2
     network_type = "CNN"
-    input_type = "action-state"
+    input_type = "state"
 
     if network_type=="FCNN":
         if input_type == "state":
@@ -92,14 +91,6 @@ if __name__ == "__main__":
         elif input_type == "action-state":
             network = QNetworkCNNAS(input_shape, num_actions)
 
-    optimizer = optim.Adam(network.parameters(), lr=learning_rate)
-    loss_function = nn.MSELoss()
 
-    state = 0
-    q_v = network(state)
-    target_v = np.random.rand()
-    loss = loss_function(q_v, target_v)
 
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+
