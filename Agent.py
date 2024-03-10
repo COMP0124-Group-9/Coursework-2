@@ -35,7 +35,7 @@ class Agent:
 
     def reward(self, observation: np.ndarray) -> np.ndarray:
         reward = (self.__reward_vector @ observation).sum()
-        assert reward.shape == (1,)
+        assert reward.shape == ()
         return reward
 
     def action(self, observation, info):

@@ -5,6 +5,8 @@ from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
+BLOCKS_PER_PLAYER = 24
+
 
 class Game:
     _block_width = 8
@@ -62,6 +64,7 @@ class Game:
         block_statuses += self.process_blocks(segment=player_area[0:16, 28:32, :],
                                               block_height=self._block_height,
                                               block_width=self._small_block_width)
+        assert len(block_statuses) == BLOCKS_PER_PLAYER
         return np.array(block_statuses)
 
     @staticmethod
@@ -208,8 +211,8 @@ class Game:
                                               observation=observations[agent],
                                               info=infos[agent])
                 actions[agent] = action
-            
-            observations, rewards, terminations, truncations, infos = env.step(actions)
+
+            observations, _, terminations, truncations, infos = env.step(actions)
 
             for agent in env.agents:
                 next_observation_parsed = self.parse_observation(observation=observations[agent],
@@ -217,7 +220,7 @@ class Game:
                                                           time=agent_times_dict[agent])
                 last_observation_parsed = last_observations_parsed[agent]
                 action = actions[agent]
-                reward = rewards[agent]
+                reward = agent_dict[agent].reward(observation=next_observation_parsed)
                 termination =  terminations[agent]
                 agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed, termination)
                 agent_dict[agent].train()
