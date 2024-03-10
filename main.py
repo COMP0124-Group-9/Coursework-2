@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 
 from Agent import Agent
-from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER
+from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER, BALL_COORDINATE_SHAPE
 
 
 def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (1e2, -1e2, -1e2, -1e2),
@@ -15,7 +15,7 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
                                               np.zeros(4),
                                               np.ones(BLOCKS_PER_PLAYER) * block_status_weights[player_index])))
     reward_vector = np.concatenate((np.concatenate(player_rewards),
-                                    np.zeros(4),
+                                    np.zeros(BALL_COORDINATE_SHAPE),
                                     [time_weight]))
     assert reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
     return reward_vector

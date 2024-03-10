@@ -6,6 +6,7 @@ from pettingzoo.atari import warlords_v3
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
 BLOCKS_PER_PLAYER = 24
+BALL_COORDINATE_SHAPE = 2
 
 
 class Game:
@@ -88,12 +89,16 @@ class Game:
         ball_columns = np.argwhere(np.logical_and(column_sums != 0,
                                                   np.logical_and(column_sums != self._block_height,
                                                                  column_sums != 2 * self._block_height))).flatten()
-        if ball_columns.shape == (2,):
+        boundary = None
+        if ball_columns.shape != (0,):
             row_sums = ball_coloured_pixels.sum(axis=-1)
             ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
-            if ball_rows.shape == (2,):
-                return np.array([ball_columns.min(), ball_rows.min(), ball_columns.max(), ball_rows.max()])
-        return np.zeros(4) - 1
+            if ball_rows.shape != (0,):
+                boundary = np.array([ball_columns.mean(), ball_columns.mean()])
+        if boundary is None:
+            boundary = np.zeros(BALL_COORDINATE_SHAPE) - 1
+        assert boundary.shape == (BALL_COORDINATE_SHAPE,)
+        return boundary
 
     def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
         player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
