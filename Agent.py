@@ -7,7 +7,7 @@ import torch.optim as optim
 from Network import QNetworkFC
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 141
+EXPECTED_OBSERVATION_LENGTH = 121
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
