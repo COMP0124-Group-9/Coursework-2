@@ -43,17 +43,18 @@ class Agent:
         assert info == {}
         if np.random.rand() < self.epsilon:
             action =  np.random.choice(self.__possible_actions)
-        with torch.no_grad():
-            state = torch.FloatTensor(observation).unsqueeze(0)
-            action = self.model(state).argmax().item()
+        else:
+            with torch.no_grad():
+                state = torch.FloatTensor(observation).unsqueeze(0)
+                action = self.model(state).argmax().item()
         assert action in self.__possible_actions
         return action
-    
+
     def train(self):
 
         if len(self.buffer) < self.batch_size:
             return
-        
+
         transitions = self.buffer.sample(self.batch_size)
         batch = list(zip(*transitions))
         state_batch = torch.FloatTensor(np.array(batch[0]))
