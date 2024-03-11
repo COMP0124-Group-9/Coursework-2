@@ -5,6 +5,9 @@ from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
+BLOCKS_PER_PLAYER = 24
+BALL_COORDINATE_SHAPE = 2
+
 
 class Game:
     _block_width = 8
@@ -20,9 +23,6 @@ class Game:
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
-        # TODO storing these here is messy and won't work in parallel
-        self.__previous_paddle_boundaries = [np.zeros(4) - 1 for _ in range(4)]
-        self.__previous_ball_boundaries = [np.zeros(4) - 1 for _ in range(4)]
 
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
@@ -65,6 +65,7 @@ class Game:
         block_statuses += self.process_blocks(segment=player_area[0:16, 28:32, :],
                                               block_height=self._block_height,
                                               block_width=self._small_block_width)
+        assert len(block_statuses) == BLOCKS_PER_PLAYER
         return np.array(block_statuses)
 
     @staticmethod
@@ -88,12 +89,16 @@ class Game:
         ball_columns = np.argwhere(np.logical_and(column_sums != 0,
                                                   np.logical_and(column_sums != self._block_height,
                                                                  column_sums != 2 * self._block_height))).flatten()
-        if ball_columns.shape == (2,):
+        boundary = None
+        if ball_columns.shape != (0,):
             row_sums = ball_coloured_pixels.sum(axis=-1)
             ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
-            return np.array([ball_columns.min(), ball_rows.min(), ball_columns.max(), ball_rows.max()])
-        else:
-            return np.zeros(4) - 1
+            if ball_rows.shape != (0,):
+                boundary = np.array([ball_columns.mean(), ball_columns.mean()])
+        if boundary is None:
+            boundary = np.zeros(BALL_COORDINATE_SHAPE) - 1
+        assert boundary.shape == (BALL_COORDINATE_SHAPE,)
+        return boundary
 
     def paddle_boundary(self, player_area: np.ndarray, player_index: int) -> np.ndarray:
         player_coloured_pixels = np.all(player_area == self._player_colours[player_index], axis=-1)
@@ -114,45 +119,31 @@ class Game:
         player_statuses = []
         for player_index, player_area in enumerate(player_areas):
             base_status = self.base_status(player_area)
-            previous_paddle_boundary = self.__previous_paddle_boundaries[player_index]
             paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
-            # TODO this is messy and won't work in parallel
-            if agent_id == "fourth_0":
-                self.__previous_paddle_boundaries[player_index] = paddle_boundary
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status,
-                                                   previous_paddle_boundary,
                                                    paddle_boundary,
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
         # TODO correct ball boundary transform
         if agent_id == "first_0":
-            previous_ball_boundary = self.__previous_ball_boundaries[0]
             ball_boundary = ball_boundary
-            self.__previous_ball_boundaries[0] = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
-            previous_ball_boundary = self.__previous_ball_boundaries[1]
             ball_boundary = ball_boundary
-            self.__previous_ball_boundaries[1] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
                                                       player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
-            previous_ball_boundary = self.__previous_ball_boundaries[2]
             ball_boundary = ball_boundary
-            self.__previous_ball_boundaries[2] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
                                                       player_statuses[0], player_statuses[1]))
         elif agent_id == "fourth_0":
-            previous_ball_boundary = self.__previous_ball_boundaries[3]
             ball_boundary = ball_boundary
-            self.__previous_ball_boundaries[3] = ball_boundary
             ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
                                                       player_statuses[1], player_statuses[0]))
         else:
             raise Exception
         parsed_observation = np.concatenate((ordered_player_statuses,
-                                             previous_ball_boundary,
                                              ball_boundary,
                                              np.array([time])))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
@@ -225,8 +216,8 @@ class Game:
                                               observation=observations[agent],
                                               info=infos[agent])
                 actions[agent] = action
-            
-            observations, rewards, terminations, truncations, infos = env.step(actions)
+
+            observations, _, terminations, truncations, infos = env.step(actions)
 
             for agent in env.agents:
                 next_observation_parsed = self.parse_observation(observation=observations[agent],
@@ -234,7 +225,7 @@ class Game:
                                                           time=agent_times_dict[agent])
                 last_observation_parsed = last_observations_parsed[agent]
                 action = actions[agent]
-                reward = rewards[agent]
+                reward = agent_dict[agent].reward(observation=next_observation_parsed)
                 termination =  terminations[agent]
                 agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed, termination)
                 agent_dict[agent].train()

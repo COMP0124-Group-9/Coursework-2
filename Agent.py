@@ -7,7 +7,7 @@ import torch.optim as optim
 from Network import QNetworkFC
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 141
+EXPECTED_OBSERVATION_LENGTH = 119
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
@@ -35,7 +35,7 @@ class Agent:
 
     def reward(self, observation: np.ndarray) -> np.ndarray:
         reward = (self.__reward_vector @ observation).sum()
-        assert reward.shape == (1,)
+        assert reward.shape == ()
         return reward
 
     def action(self, observation, info):
