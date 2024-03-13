@@ -7,7 +7,7 @@ import torch.optim as optim
 from Network import QNetworkFC
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 119
+EXPECTED_OBSERVATION_LENGTH = 121
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
@@ -26,7 +26,10 @@ class Agent:
 
         # TODO later: add target network? add epsilon decay?
 
+        self.cuda = torch.cuda.is_available()
         self.model = QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(self.__possible_actions))
+        if self.cuda:
+            self.model = self.model.cuda()
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.buffer = Buffer(self.buffer_capacity)
@@ -43,17 +46,20 @@ class Agent:
         assert info == {}
         if np.random.rand() < self.epsilon:
             action =  np.random.choice(self.__possible_actions)
-        with torch.no_grad():
-            state = torch.FloatTensor(observation).unsqueeze(0)
-            action = self.model(state).argmax().item()
+        else:
+            with torch.no_grad():
+                state = torch.FloatTensor(observation).unsqueeze(0)
+                if self.cuda:
+                    state = state.cuda()
+                action = self.model(state).argmax().item()
         assert action in self.__possible_actions
         return action
-    
+
     def train(self):
 
         if len(self.buffer) < self.batch_size:
             return
-        
+
         transitions = self.buffer.sample(self.batch_size)
         batch = list(zip(*transitions))
         state_batch = torch.FloatTensor(np.array(batch[0]))
@@ -61,7 +67,12 @@ class Agent:
         reward_batch = torch.FloatTensor(np.array(batch[2])).view(-1, 1)
         next_state_batch = torch.FloatTensor(np.array(batch[3]))
         done_batch = torch.FloatTensor(np.array(batch[4])).view(-1, 1)
-
+        if self.cuda:
+            state_batch = state_batch.cuda()
+            action_batch = action_batch.cuda()
+            reward_batch = reward_batch.cuda()
+            next_state_batch = next_state_batch.cuda()
+            done_batch = done_batch.cuda()
         current_Q = self.model(state_batch).gather(1, action_batch)
         next_Q = reward_batch + (1 - done_batch) * self.gamma * self.model(next_state_batch).max(1)[0].view(-1, 1)
         loss = self.loss(current_Q, next_Q.detach())

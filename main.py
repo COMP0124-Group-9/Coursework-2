@@ -1,3 +1,4 @@
+import time
 from typing import Tuple
 
 import numpy as np
@@ -26,9 +27,11 @@ def main():
     game = Game(agent_list=agents)
     game_count: int = 0
     while True:
+        start_time = time.time()
         print(f"Starting Game {game_count}")
         game.run_parallel()
         game_count += 1
+        print(f"finished in {time.time() - start_time} seconds")
 
 
 if __name__ == '__main__':

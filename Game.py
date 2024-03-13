@@ -6,7 +6,7 @@ from pettingzoo.atari import warlords_v3
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
 BLOCKS_PER_PLAYER = 24
-BALL_COORDINATE_SHAPE = 2
+BALL_COORDINATE_SHAPE = 4
 
 
 class Game:
@@ -18,7 +18,9 @@ class Game:
                                 [45, 109, 152],
                                 [82, 126, 45],
                                 [104, 25, 154]])
-    _ball_colour = np.array([200, 72, 72])
+    _not_ball_colours = np.concatenate((_player_colours,
+                                        [[0, 0, 0],
+                                         [170, 170, 170]]))
     _ball_width = 2
 
     def __init__(self, agent_list: List[Agent]) -> None:
@@ -83,18 +85,16 @@ class Game:
         return status
 
     def ball_boundary(self, game_area: np.ndarray) -> np.ndarray:
-        ball_coloured_pixels = np.all(game_area == self._ball_colour, axis=-1)
+        ball_coloured_pixels = np.logical_not(np.all(np.isin(game_area, self._not_ball_colours), axis=-1))
         assert ball_coloured_pixels.shape == game_area.shape[:-1]
         column_sums = ball_coloured_pixels.sum(axis=0)
-        ball_columns = np.argwhere(np.logical_and(column_sums != 0,
-                                                  np.logical_and(column_sums != self._block_height,
-                                                                 column_sums != 2 * self._block_height))).flatten()
+        ball_columns = np.argwhere(np.logical_and(column_sums != 0, column_sums % self._block_height != 0)).flatten()
         boundary = None
         if ball_columns.shape != (0,):
             row_sums = ball_coloured_pixels.sum(axis=-1)
-            ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
+            ball_rows = np.argwhere((row_sums % self._small_block_width) != 0).flatten()
             if ball_rows.shape != (0,):
-                boundary = np.array([ball_columns.mean(), ball_columns.mean()])
+                boundary = np.array([ball_columns.min(), ball_rows.min(), ball_columns.max() + 1, ball_rows.max() + 1])
         if boundary is None:
             boundary = np.zeros(BALL_COORDINATE_SHAPE) - 1
         assert boundary.shape == (BALL_COORDINATE_SHAPE,)
