@@ -109,7 +109,7 @@ class Game:
             # Paddle out of play
             result = np.zeros(4) - 1
         else:
-            result = np.array([xs.min(), ys.min(), xs.max(), ys.max()])
+            result = np.array([xs.min(), ys.min(), xs.max() + 1, ys.max() + 1])
         assert result.shape == (4,)
         return result
 
