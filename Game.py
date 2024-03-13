@@ -1,6 +1,5 @@
 from typing import Tuple, Dict, List
 
-import PIL.Image
 import numpy as np
 from pettingzoo.atari import warlords_v3
 
@@ -93,7 +92,7 @@ class Game:
         boundary = None
         if ball_columns.shape != (0,):
             row_sums = ball_coloured_pixels.sum(axis=-1)
-            ball_rows = np.argwhere(((row_sums - self._ball_width) % self._small_block_width) == 0).flatten()
+            ball_rows = np.argwhere((row_sums % self._small_block_width) != 0).flatten()
             if ball_rows.shape != (0,):
                 boundary = np.array([ball_columns.min(), ball_rows.min(), ball_columns.max() + 1, ball_rows.max() + 1])
         if boundary is None:
