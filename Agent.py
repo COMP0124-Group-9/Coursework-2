@@ -11,7 +11,7 @@ EXPECTED_OBSERVATION_LENGTH = 121
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
-    __possible_actions = np.arange(0, 6)
+    __possible_actions = np.arange(0, 18)
 
     def __init__(self, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
         self.win_count = 0

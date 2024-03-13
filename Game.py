@@ -175,7 +175,7 @@ class Game:
         return action
 
     def run(self) -> None:
-        env = warlords_v3.env(render_mode="human")
+        env = warlords_v3.env(render_mode="human", full_action_space=True)
         env.reset(seed=42)
         agent_dict = self.get_agent_dict(env=env)
         agent_times_dict = self.get_agent_times_dict(env=env)
@@ -196,7 +196,7 @@ class Game:
 
 
     def run_parallel(self) -> None:
-        env = warlords_v3.parallel_env(render_mode="human")
+        env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
         observations, infos = env.reset()
         agent_dict = self.get_agent_dict(env=env)
         agent_times_dict = self.get_agent_times_dict(env=env)
