@@ -10,9 +10,9 @@ from Agent import Agent
 from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER, BALL_COORDINATE_SHAPE
 
 
-def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (1e2, -1e2, -1e2, -1e2),
-                           block_status_weights: Tuple[float, float, float, float] = (5, -5, -5, -5),
-                           time_weight: float = 1e-3) -> np.ndarray:
+def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (24, -24 / 3, -24 / 3, -24 / 3),
+                           block_status_weights: Tuple[float, float, float, float] = (1, -1 / 3, -1 / 3, -1 / 3)) \
+        -> np.ndarray:
     player_rewards = []
     for player_index in range(4):
         player_rewards.append(np.concatenate(([base_status_weights[player_index]],
