@@ -4,6 +4,7 @@ import numpy as np
 from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
+import supersuit
 
 BLOCKS_PER_PLAYER = 24
 BALL_COORDINATE_SHAPE = 4
@@ -144,8 +145,7 @@ class Game:
         else:
             raise Exception
         parsed_observation = np.concatenate((ordered_player_statuses,
-                                             ball_boundary,
-                                             np.array([time])))
+                                             ball_boundary))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
@@ -197,6 +197,7 @@ class Game:
 
     def run_parallel(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
+        env = supersuit.frame_skip_v0(env, 4)
         observations, infos = env.reset()
         agent_dict = self.get_agent_dict(env=env)
         agent_times_dict = self.get_agent_times_dict(env=env)
