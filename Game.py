@@ -51,7 +51,7 @@ class Game:
         for segment_row in np.split(segment, segment.shape[0] // block_height, axis=0):
             for block in np.split(segment_row, segment_row.shape[1] // block_width, axis=1):
                 assert block.shape == (block_height, block_width, 3)
-                block_statuses.append(np.all(np.any(block, axis=-1)))
+                block_statuses.append(np.any(block))
         return block_statuses
 
     def block_statuses(self, player_area: np.ndarray) -> np.ndarray:
