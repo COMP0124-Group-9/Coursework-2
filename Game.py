@@ -48,10 +48,10 @@ class Game:
         segment_height, segment_width, _ = segment.shape
         assert segment_height % block_height == 0
         assert segment_width % block_width == 0
-        for segment_column in np.split(segment, segment.shape[0] // block_height, axis=0):
-            for block in np.split(segment_column, segment_column.shape[1] // block_width, axis=1):
+        for segment_row in np.split(segment, segment.shape[0] // block_height, axis=0):
+            for block in np.split(segment_row, segment_row.shape[1] // block_width, axis=1):
                 assert block.shape == (block_height, block_width, 3)
-                block_statuses.append(np.all(block))
+                block_statuses.append(np.all(np.any(block, axis=-1)))
         return block_statuses
 
     def block_statuses(self, player_area: np.ndarray) -> np.ndarray:
