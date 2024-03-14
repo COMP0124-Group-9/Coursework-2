@@ -2,3 +2,4 @@ autorom
 pettingzoo[atari]
 torch
 numpy
+supersuit
