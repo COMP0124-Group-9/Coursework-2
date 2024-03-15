@@ -18,7 +18,9 @@ class Agent:
         self.position = 0
         self.__reward_vector = reward_vector
 
-        self.epsilon = 0.1
+        self.epsilon = 1
+        self.epsilon_decay = 0.995
+        self.min_epsilon = 0.01
         self.gamma = 0.99
         self.learning_rate = 0.01
         self.batch_size = 64
@@ -76,6 +78,7 @@ class Agent:
         current_Q = self.model(state_batch).gather(1, action_batch)
         next_Q = reward_batch + (1 - done_batch) * self.gamma * self.model(next_state_batch).max(1)[0].view(-1, 1)
         loss = self.loss(current_Q, next_Q.detach())
+        self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
         self.optimizer.zero_grad()
         loss.backward()
