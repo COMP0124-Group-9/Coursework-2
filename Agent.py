@@ -11,7 +11,7 @@ EXPECTED_OBSERVATION_LENGTH = 120
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
-    __possible_actions = np.arange(0, 18)
+    _possible_actions = np.arange(0, 18)
 
     def __init__(self, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
         self.win_count = 0
@@ -29,7 +29,7 @@ class Agent:
         # TODO later: add target network? add epsilon decay?
 
         self.cuda = torch.cuda.is_available()
-        self.model = QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(self.__possible_actions))
+        self.model = QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(self._possible_actions))
         if self.cuda:
             self.model = self.model.cuda()
         self.loss = nn.MSELoss()
@@ -47,14 +47,14 @@ class Agent:
         assert observation.shape == (self.__expected_observation_length,)
         assert info == {}
         if np.random.rand() < self.epsilon:
-            action =  np.random.choice(self.__possible_actions)
+            action =  np.random.choice(self._possible_actions)
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(observation).unsqueeze(0)
                 if self.cuda:
                     state = state.cuda()
                 action = self.model(state).argmax().item()
-        assert action in self.__possible_actions
+        assert action in self._possible_actions
         return action
 
     def train(self):
