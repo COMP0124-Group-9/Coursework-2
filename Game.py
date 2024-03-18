@@ -131,15 +131,15 @@ class Game:
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
         elif agent_id == "second_0":
-            ball_boundary = ball_boundary
+            ball_boundary = [160 - ball_boundary[2], ball_boundary[1], 160 - ball_boundary[0], ball_boundary[3]]
             ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
                                                       player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
-            ball_boundary = ball_boundary
+            ball_boundary = [ball_boundary[0], 166-ball_boundary[3], ball_boundary[2], 166-ball_boundary[1]]
             ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
                                                       player_statuses[0], player_statuses[1]))
         elif agent_id == "fourth_0":
-            ball_boundary = ball_boundary
+            ball_boundary = [160 - ball_boundary[2], 166-ball_boundary[3], 160 - ball_boundary[0], 166-ball_boundary[1]]
             ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
                                                       player_statuses[1], player_statuses[0]))
         else:
