@@ -6,8 +6,10 @@ from typing import Tuple
 import numpy as np
 import torch
 
+import Network
 from Agent import Agent
 from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER, BALL_COORDINATE_SHAPE
+from RandomAgent import RandomAgent
 
 
 def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (24, -24 / 3, -24 / 3, -24 / 3),
@@ -25,7 +27,14 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
 
 
 def main():
-    agents = [Agent(reward_vector=generate_reward_vector()) for _ in range(4)]
+    agents = [Agent(reward_vector=generate_reward_vector(),
+                    model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
+              RandomAgent(reward_vector=generate_reward_vector(),
+                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
+              RandomAgent(reward_vector=generate_reward_vector(),
+                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
+              RandomAgent(reward_vector=generate_reward_vector(),
+                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions)))]
     model_path = pathlib.Path("Models")
     if model_path.exists():
         runs = [run.stem for run in model_path.iterdir()]
@@ -43,6 +52,7 @@ def main():
             game.run_parallel()
             game_count += 1
             print(f"finished in {time.time() - start_time} seconds")
+            print([agent.epsilon for agent in agents])
     except KeyboardInterrupt:
         path = model_path / datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         if not path.parent.exists():

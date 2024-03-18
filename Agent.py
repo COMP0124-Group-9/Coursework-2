@@ -1,35 +1,33 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
-from Network import QNetworkFC
 from Buffer import Buffer
 
 EXPECTED_OBSERVATION_LENGTH = 120
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
-    _possible_actions = np.arange(0, 18)
+    possible_actions = np.arange(0, 18)
 
-    def __init__(self, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
+    def __init__(self, model, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
         self.win_count = 0
         self.position = 0
         self.__reward_vector = reward_vector
 
-        self.epsilon = 1
-        self.epsilon_decay = 0.995
-        self.min_epsilon = 0.01
-        self.gamma = 0.99
-        self.learning_rate = 0.01
-        self.batch_size = 64
+        self.epsilon = 0.5
+        self.epsilon_decay = 0.99999
+        self.min_epsilon = 0.1
+        self.gamma = 0.9
+        self.learning_rate = 0.1
+        self.batch_size = 512
         self.buffer_capacity = 10000
 
         # TODO later: add target network? add epsilon decay?
 
         self.cuda = torch.cuda.is_available()
-        self.model = QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(self._possible_actions))
+        self.model = model
         if self.cuda:
             self.model = self.model.cuda()
         self.loss = nn.MSELoss()
@@ -47,14 +45,14 @@ class Agent:
         assert observation.shape == (self.__expected_observation_length,)
         assert info == {}
         if np.random.rand() < self.epsilon:
-            action =  np.random.choice(self._possible_actions)
+            action = np.random.choice(self.possible_actions)
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(observation).unsqueeze(0)
                 if self.cuda:
                     state = state.cuda()
                 action = self.model(state).argmax().item()
-        assert action in self._possible_actions
+        assert action in self.possible_actions
         return action
 
     def train(self):
