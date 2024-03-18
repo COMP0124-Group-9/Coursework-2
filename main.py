@@ -9,7 +9,6 @@ import torch
 import Network
 from Agent import Agent
 from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER, BALL_COORDINATE_SHAPE
-from RandomAgent import RandomAgent
 
 
 def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (24, -24 / 3, -24 / 3, -24 / 3),
@@ -27,14 +26,11 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
 
 
 def main():
-    agents = [Agent(reward_vector=generate_reward_vector(),
-                    model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
-              RandomAgent(reward_vector=generate_reward_vector(),
-                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
-              RandomAgent(reward_vector=generate_reward_vector(),
-                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))),
-              RandomAgent(reward_vector=generate_reward_vector(),
-                          model=Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions)))]
+    model = Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))
+    agents = [Agent(reward_vector=generate_reward_vector(), model=model),
+              Agent(reward_vector=generate_reward_vector(), model=model),
+              Agent(reward_vector=generate_reward_vector(), model=model),
+              Agent(reward_vector=generate_reward_vector(), model=model)]
     model_path = pathlib.Path("Models")
     if model_path.exists():
         runs = [run.stem for run in model_path.iterdir()]
