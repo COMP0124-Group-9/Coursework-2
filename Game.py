@@ -1,10 +1,10 @@
 from typing import Tuple, Dict, List
 
 import numpy as np
+import supersuit
 from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
-import supersuit
 
 BLOCKS_PER_PLAYER = 24
 BALL_COORDINATE_SHAPE = 4
@@ -135,11 +135,12 @@ class Game:
             ordered_player_statuses = np.concatenate((player_statuses[1], player_statuses[0],
                                                       player_statuses[3], player_statuses[2]))
         elif agent_id == "third_0":
-            ball_boundary = [ball_boundary[0], 166-ball_boundary[3], ball_boundary[2], 166-ball_boundary[1]]
+            ball_boundary = [ball_boundary[0], 166 - ball_boundary[3], ball_boundary[2], 166 - ball_boundary[1]]
             ordered_player_statuses = np.concatenate((player_statuses[2], player_statuses[3],
                                                       player_statuses[0], player_statuses[1]))
         elif agent_id == "fourth_0":
-            ball_boundary = [160 - ball_boundary[2], 166-ball_boundary[3], 160 - ball_boundary[0], 166-ball_boundary[1]]
+            ball_boundary = [160 - ball_boundary[2], 166 - ball_boundary[3], 160 - ball_boundary[0],
+                             166 - ball_boundary[1]]
             ordered_player_statuses = np.concatenate((player_statuses[3], player_statuses[2],
                                                       player_statuses[1], player_statuses[0]))
         else:
@@ -149,12 +150,12 @@ class Game:
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
-    def get_agent_dict(self, env) -> Dict[str, Agent]:
-        return {agent_id: agent for agent_id, agent in zip(env.agents, self.agent_list)}
+    def get_agent_dict(self, agent_ids: List[str]) -> Dict[str, Agent]:
+        return {agent_id: agent for agent_id, agent in zip(agent_ids, self.agent_list)}
 
     @staticmethod
-    def get_agent_times_dict(env) -> Dict[str, int]:
-        return {agent_id: 0 for agent_id in env.agents}
+    def get_agent_times_dict(agent_ids: List[str]) -> Dict[str, int]:
+        return {agent_id: 0 for agent_id in agent_ids}
 
     def get_action(self,
                    agent_dict: Dict[str, Agent],
@@ -174,61 +175,75 @@ class Game:
         #        "Observation": parsed_observation})
         return action
 
-    def run(self) -> None:
-        env = warlords_v3.env(render_mode="human", full_action_space=True)
-        env.reset(seed=42)
-        agent_dict = self.get_agent_dict(env=env)
-        agent_times_dict = self.get_agent_times_dict(env=env)
-        for agent in env.agent_iter():
-            observation, reward, termination, truncation, info = env.last()
-            
-            if termination or truncation:
-                action = None
-            else:
-                action = self.get_action(agent_dict=agent_dict,
-                                         agent_times_dict=agent_times_dict,
-                                         agent_id=agent,
-                                         observation=observation,
-                                         info=info)
-            env.step(action)
-
-        env.close()
-
+    # def run(self) -> None:
+    #     env = warlords_v3.env(render_mode="human", full_action_space=True)
+    #     env.reset(seed=42)
+    #     agent_dict = self.get_agent_dict(env=env)
+    #     agent_times_dict = self.get_agent_times_dict(env=env)
+    #     for agent in env.agent_iter():
+    #         observation, reward, termination, truncation, info = env.last()
+    #
+    #         if termination or truncation:
+    #             action = None
+    #         else:
+    #             action = self.get_action(agent_dict=agent_dict,
+    #                                      agent_times_dict=agent_times_dict,
+    #                                      agent_id=agent,
+    #                                      observation=observation,
+    #                                      info=info)
+    #         env.step(action)
+    #
+    #     env.close()
 
     def run_parallel(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
         env = supersuit.frame_skip_v0(env, 4)
         observations, infos = env.reset()
-        agent_dict = self.get_agent_dict(env=env)
-        agent_times_dict = self.get_agent_times_dict(env=env)
+        agent_ids = env.agents
+        assert len(agent_ids) == len(self.agent_list)
+        agent_dict = self.get_agent_dict(agent_ids=agent_ids)
+        agent_times_dict = self.get_agent_times_dict(agent_ids=agent_ids)
+        final_observations = {}
+        final_infos = {}
         while env.agents:
-            
+
             last_observations_parsed = {}
             actions = {}
 
-            for agent in env.agents:
-                last_observation_parsed = self.parse_observation(observation=observations[agent],
-                                                          agent_id=agent,
-                                                          time=agent_times_dict[agent]) 
-                last_observations_parsed[agent] = last_observation_parsed
+            for agent in agent_ids:
+                last_observations_parsed[agent] = self.parse_observation(observation=observations[agent],
+                                                                         agent_id=agent,
+                                                                         time=agent_times_dict[agent])
                 action = self.get_action(agent_dict=agent_dict,
-                                              agent_times_dict=agent_times_dict,
-                                              agent_id=agent,
-                                              observation=observations[agent],
-                                              info=infos[agent])
+                                         agent_times_dict=agent_times_dict,
+                                         agent_id=agent,
+                                         observation=observations[agent],
+                                         info=infos[agent])
                 actions[agent] = action
 
             observations, _, terminations, truncations, infos = env.step(actions)
 
-            for agent in env.agents:
-                next_observation_parsed = self.parse_observation(observation=observations[agent],
-                                                          agent_id=agent,
-                                                          time=agent_times_dict[agent])
+            for agent in agent_ids:
+                if agent in observations.keys():
+                    next_observation_parsed = self.parse_observation(observation=observations[agent],
+                                                                     agent_id=agent,
+                                                                     time=agent_times_dict[agent])
+                    termination = terminations[agent]
+                    reward = agent_dict[agent].reward(observation=next_observation_parsed)
+                    if termination:
+                        final_observations[agent] = observations[agent]
+                        final_infos[agent] = infos[agent]
+                else:
+                    next_observation_parsed = last_observations_parsed[agent]
+                    next_observation_parsed[0] = 0
+                    termination = True
+                    reward = -1e10
+                    observations[agent] = final_observations[agent]
+                    infos[agent] = final_infos[agent]
                 last_observation_parsed = last_observations_parsed[agent]
                 action = actions[agent]
-                reward = agent_dict[agent].reward(observation=next_observation_parsed)
-                termination =  terminations[agent]
-                agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed, termination)
+                agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed,
+                                                termination)
                 agent_dict[agent].train()
 
         env.close()
