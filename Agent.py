@@ -11,17 +11,21 @@ class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
     possible_actions = np.arange(0, 18)
 
-    def __init__(self, model, reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
+    def __init__(self,
+                 model,
+                 reversed_controls: bool,
+                 reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
+        self.reversed_controls = reversed_controls
         self.win_count = 0
         self.position = 0
         self.__reward_vector = reward_vector
 
-        self.epsilon = 0.5
+        self.epsilon = 1.0
         self.epsilon_decay = 0.99999
         self.min_epsilon = 0.1
         self.gamma = 0.9
         self.learning_rate = 0.1
-        self.batch_size = 512
+        self.batch_size = 64
         self.buffer_capacity = 10000
 
         # TODO later: add target network? add epsilon decay?
@@ -41,6 +45,11 @@ class Agent:
         assert reward.shape == ()
         return reward
 
+    def reverse_action(self, action):
+        if self.reversed_controls:
+            return [0, 1, 2, 4, 3, 5, 7, 6, 9, 8, 10, 12, 11, 13, 15, 14, 17, 16][action]
+        return action
+
     def action(self, observation, info):
         assert observation.shape == (self.__expected_observation_length,)
         assert info == {}
@@ -53,7 +62,7 @@ class Agent:
                     state = state.cuda()
                 action = self.model(state).argmax().item()
         assert action in self.possible_actions
-        return action
+        return self.reverse_action(action=action)
 
     def train(self):
 

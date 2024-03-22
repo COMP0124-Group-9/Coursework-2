@@ -27,10 +27,10 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
 
 def main():
     model = Network.QNetworkFC(EXPECTED_OBSERVATION_LENGTH, len(Agent.possible_actions))
-    agents = [Agent(reward_vector=generate_reward_vector(), model=model),
-              Agent(reward_vector=generate_reward_vector(), model=model),
-              Agent(reward_vector=generate_reward_vector(), model=model),
-              Agent(reward_vector=generate_reward_vector(), model=model)]
+    agents = [Agent(reward_vector=generate_reward_vector(), model=model, reversed_controls=False),
+              Agent(reward_vector=generate_reward_vector(), model=model, reversed_controls=True),
+              Agent(reward_vector=generate_reward_vector(), model=model, reversed_controls=False),
+              Agent(reward_vector=generate_reward_vector(), model=model, reversed_controls=True)]
     model_path = pathlib.Path("Models")
     if model_path.exists():
         runs = [run.stem for run in model_path.iterdir()]
