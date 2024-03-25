@@ -241,7 +241,7 @@ class Game:
                     next_observation_parsed = last_observations_parsed[agent]
                     next_observation_parsed[0] = 0
                     termination = True
-                    reward = -1e10
+                    reward = -1e20
                     observations[agent] = final_observations[agent]
                     infos[agent] = final_infos[agent]
                 last_observation_parsed = last_observations_parsed[agent]

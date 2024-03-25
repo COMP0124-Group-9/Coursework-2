@@ -40,8 +40,11 @@ class Agent:
 
         assert self.__reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
 
-    def reward(self, observation: np.ndarray) -> np.ndarray:
-        reward = (self.__reward_vector @ observation).sum()
+    def reward(self, observation: np.ndarray, paddle_ball_weight:float = 100000000) -> np.ndarray:
+        paddle_mean_position = observation[1:5].reshape(2,2).sum(axis=0)/2
+        ball_mean_position = observation[-8:-4].reshape(2,2).sum(axis=0)/2
+        paddle_ball_distance = np.square(paddle_mean_position-ball_mean_position).sum()
+        reward = (self.__reward_vector @ observation).sum() + (paddle_ball_weight/paddle_ball_distance)
         assert reward.shape == ()
         return reward
 
