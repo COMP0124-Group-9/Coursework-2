@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 120
+EXPECTED_OBSERVATION_LENGTH = 124
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
@@ -20,11 +20,11 @@ class Agent:
         self.position = 0
         self.__reward_vector = reward_vector
 
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.99999
+        self.epsilon = 0.8
+        self.epsilon_decay = 0.999999
         self.min_epsilon = 0.1
         self.gamma = 0.9
-        self.learning_rate = 0.1
+        self.learning_rate = 0.01
         self.batch_size = 64
         self.buffer_capacity = 10000
 

@@ -20,6 +20,7 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
                                               np.zeros(4),
                                               np.ones(BLOCKS_PER_PLAYER) * block_status_weights[player_index])))
     reward_vector = np.concatenate((np.concatenate(player_rewards),
+                                    np.zeros(BALL_COORDINATE_SHAPE),
                                     np.zeros(BALL_COORDINATE_SHAPE)))
     assert reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
     return reward_vector

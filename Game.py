@@ -114,7 +114,10 @@ class Game:
         assert result.shape == (4,)
         return result
 
-    def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
+    def parse_observation(self,
+                          observation: np.ndarray,
+                          agent_id: str,
+                          last_ball_position: np.ndarray) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
@@ -146,7 +149,8 @@ class Game:
         else:
             raise Exception
         parsed_observation = np.concatenate((ordered_player_statuses,
-                                             ball_boundary))
+                                             ball_boundary,
+                                             last_ball_position))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
@@ -159,15 +163,14 @@ class Game:
 
     def get_action(self,
                    agent_dict: Dict[str, Agent],
-                   agent_times_dict: Dict[str, int],
                    agent_id: str,
                    observation: np.ndarray,
-                   info: dict) -> int:
+                   info: dict,
+                   last_ball_position: np.ndarray) -> int:
         parsed_observation = self.parse_observation(observation=observation,
                                                     agent_id=agent_id,
-                                                    time=agent_times_dict[agent_id])
+                                                    last_ball_position=last_ball_position)
         action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
-        agent_times_dict[agent_id] += 1
         # print({"Agent": agent_id,
         #        "Action": action,
         #        "Observation Shape": parsed_observation.shape,
@@ -202,9 +205,9 @@ class Game:
         agent_ids = env.agents
         assert len(agent_ids) == len(self.agent_list)
         agent_dict = self.get_agent_dict(agent_ids=agent_ids)
-        agent_times_dict = self.get_agent_times_dict(agent_ids=agent_ids)
         final_observations = {}
         final_infos = {}
+        last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
         while env.agents:
 
             last_observations_parsed = {}
@@ -213,13 +216,14 @@ class Game:
             for agent in agent_ids:
                 last_observations_parsed[agent] = self.parse_observation(observation=observations[agent],
                                                                          agent_id=agent,
-                                                                         time=agent_times_dict[agent])
+                                                                         last_ball_position=last_ball_positions[agent])
                 action = self.get_action(agent_dict=agent_dict,
-                                         agent_times_dict=agent_times_dict,
                                          agent_id=agent,
                                          observation=observations[agent],
-                                         info=infos[agent])
+                                         info=infos[agent],
+                                         last_ball_position=last_ball_positions[agent])
                 actions[agent] = action
+                last_ball_positions[agent] =last_observations_parsed[agent][-8:-4]
 
             observations, _, terminations, truncations, infos = env.step(actions)
 
@@ -227,7 +231,7 @@ class Game:
                 if agent in observations.keys():
                     next_observation_parsed = self.parse_observation(observation=observations[agent],
                                                                      agent_id=agent,
-                                                                     time=agent_times_dict[agent])
+                                                                     last_ball_position=last_ball_positions[agent])
                     termination = terminations[agent]
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
