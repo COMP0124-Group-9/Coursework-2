@@ -165,7 +165,7 @@ class Game:
         assert action in Agent.possible_actions
         return action
 
-    def run_parallel(self) -> None:
+    def run(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
         env = supersuit.frame_skip_v0(env, 4)
         observations, _ = env.reset()
