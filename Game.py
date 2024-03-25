@@ -150,7 +150,7 @@ class Game:
             raise Exception
         parsed_observation = np.concatenate((ordered_player_statuses,
                                              ball_boundary,
-                                             last_ball_position))
+                                             ball_boundary - last_ball_position))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
