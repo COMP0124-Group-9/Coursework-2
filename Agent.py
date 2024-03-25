@@ -53,9 +53,8 @@ class Agent:
             return [0, 1, 2, 4, 3, 5, 7, 6, 9, 8, 10, 12, 11, 13, 15, 14, 17, 16][action]
         return action
 
-    def action(self, observation, info):
+    def action(self, observation):
         assert observation.shape == (self.__expected_observation_length,)
-        assert info == {}
         if np.random.rand() < self.epsilon:
             action = np.random.choice(self.possible_actions)
         else:

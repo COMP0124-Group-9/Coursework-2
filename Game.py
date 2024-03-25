@@ -159,19 +159,16 @@ class Game:
     def get_agent_dict(self, agent_ids: List[str]) -> Dict[str, Agent]:
         return {agent_id: agent for agent_id, agent in zip(agent_ids, self.agent_list)}
 
-    def get_action(self,
-                   agent_dict: Dict[str, Agent],
-                   agent_id: str,
-                   parsed_observation: np.ndarray,
-                   info: dict) -> int:
-        action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
+    @staticmethod
+    def get_action(agent_dict: Dict[str, Agent], agent_id: str, parsed_observation: np.ndarray) -> int:
+        action = agent_dict[agent_id].action(observation=parsed_observation)
         assert action in Agent.possible_actions
         return action
 
     def run_parallel(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
         env = supersuit.frame_skip_v0(env, 4)
-        observations, infos = env.reset()
+        observations, _ = env.reset()
         agent_ids = env.agents
         assert len(agent_ids) == len(self.agent_list)
         agent_dict = self.get_agent_dict(agent_ids=agent_ids)
@@ -188,8 +185,7 @@ class Game:
         while env.agents:
             actions = {agent: self.get_action(agent_dict=agent_dict,
                                               agent_id=agent,
-                                              parsed_observation=last_observations_parsed[agent],
-                                              info=infos[agent])
+                                              parsed_observation=last_observations_parsed[agent])
                        for agent in agent_ids}
             for agent in agent_ids:
                 last_paddle_positions[agent][0] = last_observations_parsed[agent][1:5]
