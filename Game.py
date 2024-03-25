@@ -117,7 +117,8 @@ class Game:
     def parse_observation(self,
                           observation: np.ndarray,
                           agent_id: str,
-                          last_ball_position: np.ndarray) -> np.ndarray:
+                          last_ball_position: np.ndarray,
+                          last_paddle_positions: List[np.ndarray]) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
@@ -127,6 +128,7 @@ class Game:
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status,
                                                    paddle_boundary,
+                                                   paddle_boundary - last_paddle_positions[player_index],
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
         # TODO correct ball boundary transform
@@ -166,10 +168,12 @@ class Game:
                    agent_id: str,
                    observation: np.ndarray,
                    info: dict,
-                   last_ball_position: np.ndarray) -> int:
+                   last_ball_position: np.ndarray,
+                   last_paddle_positions: List[np.ndarray]) -> int:
         parsed_observation = self.parse_observation(observation=observation,
                                                     agent_id=agent_id,
-                                                    last_ball_position=last_ball_position)
+                                                    last_ball_position=last_ball_position,
+                                                    last_paddle_positions=last_paddle_positions)
         action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
         # print({"Agent": agent_id,
         #        "Action": action,
@@ -208,6 +212,8 @@ class Game:
         final_observations = {}
         final_infos = {}
         last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
+        last_paddle_positions = {agent_id: [np.array([-1, -1, -1, -1]) for _ in range(len(agent_ids))]
+                                 for agent_id in agent_ids}
         while env.agents:
 
             last_observations_parsed = {}
@@ -216,13 +222,20 @@ class Game:
             for agent in agent_ids:
                 last_observations_parsed[agent] = self.parse_observation(observation=observations[agent],
                                                                          agent_id=agent,
-                                                                         last_ball_position=last_ball_positions[agent])
+                                                                         last_ball_position=last_ball_positions[agent],
+                                                                         last_paddle_positions=last_paddle_positions[agent])
                 action = self.get_action(agent_dict=agent_dict,
                                          agent_id=agent,
                                          observation=observations[agent],
                                          info=infos[agent],
-                                         last_ball_position=last_ball_positions[agent])
+                                         last_ball_position=last_ball_positions[agent],
+                                         last_paddle_positions=last_paddle_positions[agent])
                 actions[agent] = action
+
+                last_paddle_positions[agent][0]=last_observations_parsed[agent][1:5]
+                last_paddle_positions[agent][1] = last_observations_parsed[agent][34:38]
+                last_paddle_positions[agent][2] = last_observations_parsed[agent][67:71]
+                last_paddle_positions[agent][3] = last_observations_parsed[agent][100:104]
                 last_ball_positions[agent] =last_observations_parsed[agent][-8:-4]
 
             observations, _, terminations, truncations, infos = env.step(actions)
@@ -231,7 +244,8 @@ class Game:
                 if agent in observations.keys():
                     next_observation_parsed = self.parse_observation(observation=observations[agent],
                                                                      agent_id=agent,
-                                                                     last_ball_position=last_ball_positions[agent])
+                                                                     last_ball_position=last_ball_positions[agent],
+                                                                     last_paddle_positions=last_paddle_positions[agent])
                     termination = terminations[agent]
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:

@@ -18,6 +18,7 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
     for player_index in range(4):
         player_rewards.append(np.concatenate(([base_status_weights[player_index]],
                                               np.zeros(4),
+                                              np.zeros(4),
                                               np.ones(BLOCKS_PER_PLAYER) * block_status_weights[player_index])))
     reward_vector = np.concatenate((np.concatenate(player_rewards),
                                     np.zeros(BALL_COORDINATE_SHAPE),

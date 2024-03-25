@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 124
+EXPECTED_OBSERVATION_LENGTH = 140
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
