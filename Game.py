@@ -114,7 +114,11 @@ class Game:
         assert result.shape == (4,)
         return result
 
-    def parse_observation(self, observation: np.ndarray, agent_id: str, time: int) -> np.ndarray:
+    def parse_observation(self,
+                          observation: np.ndarray,
+                          agent_id: str,
+                          last_ball_position: np.ndarray,
+                          last_paddle_positions: List[np.ndarray]) -> np.ndarray:
         game_area = self.get_game_area(observation)
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
@@ -124,6 +128,7 @@ class Game:
             block_status = self.block_statuses(player_area)
             player_statuses.append(np.concatenate((base_status,
                                                    paddle_boundary,
+                                                   paddle_boundary - last_paddle_positions[player_index],
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
         # TODO correct ball boundary transform
@@ -146,7 +151,8 @@ class Game:
         else:
             raise Exception
         parsed_observation = np.concatenate((ordered_player_statuses,
-                                             ball_boundary))
+                                             ball_boundary,
+                                             ball_boundary - last_ball_position))
         assert parsed_observation.shape == (EXPECTED_OBSERVATION_LENGTH,)
         return parsed_observation
 
@@ -154,96 +160,63 @@ class Game:
         return {agent_id: agent for agent_id, agent in zip(agent_ids, self.agent_list)}
 
     @staticmethod
-    def get_agent_times_dict(agent_ids: List[str]) -> Dict[str, int]:
-        return {agent_id: 0 for agent_id in agent_ids}
-
-    def get_action(self,
-                   agent_dict: Dict[str, Agent],
-                   agent_times_dict: Dict[str, int],
-                   agent_id: str,
-                   observation: np.ndarray,
-                   info: dict) -> int:
-        parsed_observation = self.parse_observation(observation=observation,
-                                                    agent_id=agent_id,
-                                                    time=agent_times_dict[agent_id])
-        action = agent_dict[agent_id].action(observation=parsed_observation, info=info)
-        agent_times_dict[agent_id] += 1
-        # print({"Agent": agent_id,
-        #        "Action": action,
-        #        "Observation Shape": parsed_observation.shape,
-        #        "Info": info,
-        #        "Observation": parsed_observation})
+    def get_action(agent_dict: Dict[str, Agent], agent_id: str, parsed_observation: np.ndarray) -> int:
+        action = agent_dict[agent_id].action(observation=parsed_observation)
+        assert action in Agent.possible_actions
         return action
 
-    # def run(self) -> None:
-    #     env = warlords_v3.env(render_mode="human", full_action_space=True)
-    #     env.reset(seed=42)
-    #     agent_dict = self.get_agent_dict(env=env)
-    #     agent_times_dict = self.get_agent_times_dict(env=env)
-    #     for agent in env.agent_iter():
-    #         observation, reward, termination, truncation, info = env.last()
-    #
-    #         if termination or truncation:
-    #             action = None
-    #         else:
-    #             action = self.get_action(agent_dict=agent_dict,
-    #                                      agent_times_dict=agent_times_dict,
-    #                                      agent_id=agent,
-    #                                      observation=observation,
-    #                                      info=info)
-    #         env.step(action)
-    #
-    #     env.close()
-
-    def run_parallel(self) -> None:
+    def run(self) -> None:
         env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
         env = supersuit.frame_skip_v0(env, 4)
-        observations, infos = env.reset()
+        observations, _ = env.reset()
         agent_ids = env.agents
         assert len(agent_ids) == len(self.agent_list)
         agent_dict = self.get_agent_dict(agent_ids=agent_ids)
-        agent_times_dict = self.get_agent_times_dict(agent_ids=agent_ids)
+        last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
+        last_paddle_positions = {agent_id: [np.array([-1, -1, -1, -1]) for _ in range(len(agent_ids))]
+                                 for agent_id in agent_ids}
+        last_observations_parsed = {agent: self.parse_observation(observation=observations[agent],
+                                                                  agent_id=agent,
+                                                                  last_ball_position=last_ball_positions[agent],
+                                                                  last_paddle_positions=last_paddle_positions[agent])
+                                    for agent in agent_ids}
         final_observations = {}
-        final_infos = {}
+
         while env.agents:
-
-            last_observations_parsed = {}
-            actions = {}
-
+            actions = {agent: self.get_action(agent_dict=agent_dict,
+                                              agent_id=agent,
+                                              parsed_observation=last_observations_parsed[agent])
+                       for agent in agent_ids}
             for agent in agent_ids:
-                last_observations_parsed[agent] = self.parse_observation(observation=observations[agent],
-                                                                         agent_id=agent,
-                                                                         time=agent_times_dict[agent])
-                action = self.get_action(agent_dict=agent_dict,
-                                         agent_times_dict=agent_times_dict,
-                                         agent_id=agent,
-                                         observation=observations[agent],
-                                         info=infos[agent])
-                actions[agent] = action
+                last_paddle_positions[agent][0] = last_observations_parsed[agent][1:5]
+                last_paddle_positions[agent][1] = last_observations_parsed[agent][34:38]
+                last_paddle_positions[agent][2] = last_observations_parsed[agent][67:71]
+                last_paddle_positions[agent][3] = last_observations_parsed[agent][100:104]
+                last_ball_positions[agent] = last_observations_parsed[agent][-8:-4]
 
-            observations, _, terminations, truncations, infos = env.step(actions)
+            observations, _, terminations, _, _ = env.step(actions)
 
             for agent in agent_ids:
                 if agent in observations.keys():
                     next_observation_parsed = self.parse_observation(observation=observations[agent],
                                                                      agent_id=agent,
-                                                                     time=agent_times_dict[agent])
+                                                                     last_ball_position=last_ball_positions[agent],
+                                                                     last_paddle_positions=last_paddle_positions[agent])
                     termination = terminations[agent]
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
                         final_observations[agent] = observations[agent]
-                        final_infos[agent] = infos[agent]
                 else:
                     next_observation_parsed = last_observations_parsed[agent]
                     next_observation_parsed[0] = 0
                     termination = True
-                    reward = -1e10
+                    reward = -1e20
                     observations[agent] = final_observations[agent]
-                    infos[agent] = final_infos[agent]
-                last_observation_parsed = last_observations_parsed[agent]
-                action = actions[agent]
-                agent_dict[agent].add_to_buffer(last_observation_parsed, action, reward, next_observation_parsed,
+                agent_dict[agent].add_to_buffer(last_observations_parsed[agent],
+                                                actions[agent],
+                                                reward,
+                                                next_observation_parsed,
                                                 termination)
                 agent_dict[agent].train()
-
+                last_observations_parsed[agent] = next_observation_parsed
         env.close()

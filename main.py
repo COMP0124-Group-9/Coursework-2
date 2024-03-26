@@ -18,8 +18,10 @@ def generate_reward_vector(base_status_weights: Tuple[float, float, float, float
     for player_index in range(4):
         player_rewards.append(np.concatenate(([base_status_weights[player_index]],
                                               np.zeros(4),
+                                              np.zeros(4),
                                               np.ones(BLOCKS_PER_PLAYER) * block_status_weights[player_index])))
     reward_vector = np.concatenate((np.concatenate(player_rewards),
+                                    np.zeros(BALL_COORDINATE_SHAPE),
                                     np.zeros(BALL_COORDINATE_SHAPE)))
     assert reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
     return reward_vector
@@ -45,7 +47,7 @@ def main():
         while True:
             start_time = time.time()
             print(f"Starting Game {game_count}")
-            game.run_parallel()
+            game.run()
             game_count += 1
             print(f"finished in {time.time() - start_time} seconds")
             print([agent.epsilon for agent in agents])

@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from Buffer import Buffer
 
-EXPECTED_OBSERVATION_LENGTH = 120
+EXPECTED_OBSERVATION_LENGTH = 140
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
@@ -20,11 +20,11 @@ class Agent:
         self.position = 0
         self.__reward_vector = reward_vector
 
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.99999
+        self.epsilon = 0.8
+        self.epsilon_decay = 0.999999
         self.min_epsilon = 0.1
         self.gamma = 0.9
-        self.learning_rate = 0.1
+        self.learning_rate = 0.01
         self.batch_size = 64
         self.buffer_capacity = 10000
 
@@ -40,8 +40,11 @@ class Agent:
 
         assert self.__reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
 
-    def reward(self, observation: np.ndarray) -> np.ndarray:
-        reward = (self.__reward_vector @ observation).sum()
+    def reward(self, observation: np.ndarray, paddle_ball_weight:float = 100000000) -> np.ndarray:
+        paddle_mean_position = observation[1:5].reshape(2,2).sum(axis=0)/2
+        ball_mean_position = observation[-8:-4].reshape(2,2).sum(axis=0)/2
+        paddle_ball_distance = np.square(paddle_mean_position-ball_mean_position).sum()
+        reward = (self.__reward_vector @ observation).sum() + (paddle_ball_weight/paddle_ball_distance)
         assert reward.shape == ()
         return reward
 
@@ -50,9 +53,8 @@ class Agent:
             return [0, 1, 2, 4, 3, 5, 7, 6, 9, 8, 10, 12, 11, 13, 15, 14, 17, 16][action]
         return action
 
-    def action(self, observation, info):
+    def action(self, observation):
         assert observation.shape == (self.__expected_observation_length,)
-        assert info == {}
         if np.random.rand() < self.epsilon:
             action = np.random.choice(self.possible_actions)
         else:
