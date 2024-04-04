@@ -47,7 +47,7 @@ def main():
         while True:
             start_time = time.time()
             print(f"Starting Game {game_count}")
-            game.run()
+            game.run_madppg()
             game_count += 1
             print(f"finished in {time.time() - start_time} seconds")
             print([agent.epsilon for agent in agents])

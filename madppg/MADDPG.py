@@ -6,8 +6,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from Agent import Agent
-from ..Buffer import Buffer
+from .Agent import Agent
+from .Buffer import Buffer
 
 
 
@@ -35,11 +35,12 @@ class MADDPG:
         # create Agent(actor-critic) and replay buffer for each agent
         self.agents = {}
         self.buffers = {}
-        self.buffer_capacity = 10000
+        #self.buffer_capacity = 10000
         for agent_id, (obs_dim, act_dim) in dim_info.items():
+            #space need to be corrected
             self.agents[agent_id] = Agent(obs_dim, act_dim, global_obs_act_dim, actor_lr, critic_lr)
-            #self.buffers[agent_id] = Buffer(capacity, obs_dim, act_dim, 'cpu')
-            self.buffers[agent_id] = Buffer(self.buffer_capacity)
+            self.buffers[agent_id] = Buffer(capacity, obs_dim, act_dim, 'cpu')
+            #self.buffers[agent_id] = Buffer(self.buffer_capacity)
         self.dim_info = dim_info
 
         self.batch_size = batch_size
@@ -63,7 +64,8 @@ class MADDPG:
     def sample(self, batch_size):
         """sample experience from all the agents' buffers, and collect data for network input"""
         # get the total num of transitions, these buffers should have same number of transitions
-        total_num = len(self.buffers['agent_0'])
+        
+        total_num = len(self.buffers['first_0'])
         indices = np.random.choice(total_num, size=batch_size, replace=False)
 
         # NOTE that in MADDPG, we need the obs and actions of all agents
@@ -76,7 +78,6 @@ class MADDPG:
             reward[agent_id] = r
             next_obs[agent_id] = n_o
             done[agent_id] = d
-            # calculate next_action using target_network and next_state
             next_act[agent_id] = self.agents[agent_id].target_action(n_o)
 
         return obs, act, reward, next_obs, done, next_act

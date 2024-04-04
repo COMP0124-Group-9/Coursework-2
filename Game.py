@@ -6,6 +6,8 @@ from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
 
+from madppg.MADDPG import MADDPG
+
 BLOCKS_PER_PLAYER = 24
 BALL_COORDINATE_SHAPE = 4
 
@@ -202,6 +204,7 @@ class Game:
                                                                      agent_id=agent,
                                                                      last_ball_position=last_ball_positions[agent],
                                                                      last_paddle_positions=last_paddle_positions[agent])
+                    print("next_observation_parsed.shape",next_observation_parsed.shape)
                     termination = terminations[agent]
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
@@ -220,3 +223,84 @@ class Game:
                 agent_dict[agent].train()
                 last_observations_parsed[agent] = next_observation_parsed
         env.close()
+
+
+    
+    def run_madppg(self):
+        env = warlords_v3.parallel_env(render_mode="human", full_action_space=True)
+        env = supersuit.frame_skip_v0(env, 4)
+        observations, _ = env.reset()
+        agent_ids = env.agents
+        assert len(agent_ids) == len(self.agent_list)
+        agent_dict = self.get_agent_dict(agent_ids=agent_ids)
+        last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
+        last_paddle_positions = {agent_id: [np.array([-1, -1, -1, -1]) for _ in range(len(agent_ids))]
+                                 for agent_id in agent_ids}
+        last_observations_parsed = {agent: self.parse_observation(observation=observations[agent],
+                                                                  agent_id=agent,
+                                                                  last_ball_position=last_ball_positions[agent],
+                                                                  last_paddle_positions=last_paddle_positions[agent])
+                                    for agent in agent_ids}
+        final_observations = {}
+
+         # MADDPG setup
+        obs_dim = 140
+        act_dim = 6   
+        step = 0 
+        random_steps = 20
+        dim_info = {agent_id: (obs_dim, act_dim) for agent_id in agent_ids}
+        maddpg = MADDPG(dim_info, capacity=10000, batch_size=64, actor_lr=1e-4, critic_lr=1e-3, res_dir="./results")
+
+        while env.agents:  
+            step += 1
+            if step <random_steps:
+                actions = {agent_id: env.action_space(agent_id).sample() for agent_id in env.agents}
+            # Select actions using MADDPG
+            else:
+                actions = maddpg.select_action(last_observations_parsed)
+
+            for agent in agent_ids:
+                last_paddle_positions[agent][0] = last_observations_parsed[agent][1:5]
+                last_paddle_positions[agent][1] = last_observations_parsed[agent][34:38]
+                last_paddle_positions[agent][2] = last_observations_parsed[agent][67:71]
+                last_paddle_positions[agent][3] = last_observations_parsed[agent][100:104]
+                last_ball_positions[agent] = last_observations_parsed[agent][-8:-4]
+        
+            observations, _, terminations, _, _ = env.step(actions)
+
+            rewards_dict = {}
+            next_observation_parsed_dict = {}
+            for agent in agent_ids:
+                if agent in observations.keys():
+                    next_observation_parsed = self.parse_observation(observation=observations[agent],
+                                                                     agent_id=agent,
+                                                                     last_ball_position=last_ball_positions[agent],
+                                                                     last_paddle_positions=last_paddle_positions[agent])
+                    next_observation_parsed_dict[agent] = next_observation_parsed
+                    termination = terminations[agent]
+                    reward = agent_dict[agent].reward(observation=next_observation_parsed)
+                    rewards_dict[agent] = reward
+                    if termination:
+                        final_observations[agent] = observations[agent]
+                else:
+                    next_observation_parsed = last_observations_parsed[agent]
+                    next_observation_parsed[0] = 0
+                    next_observation_parsed_dict[agent] = np.zeros_like(next_observation_parsed)
+                    termination = True
+                    reward = -1e20
+                    rewards_dict[agent] = reward 
+                    observations[agent] = final_observations[agent]
+                last_observations_parsed[agent] = next_observation_parsed
+ 
+            
+
+            maddpg.add( last_observations_parsed,actions,rewards_dict,next_observation_parsed_dict,terminations)
+
+            if step >= random_steps:
+            # Learning step
+                maddpg.learn(16, 0.99)
+                maddpg.update_target(0.01)
+
+
+        env.close()
+
