@@ -106,5 +106,6 @@ class Agent:
         loss.backward()
         self.optimizer.step()
 
+        
     def add_to_buffer(self, state, action, reward, next_state, done):
         self.buffer.push((state, action, reward, next_state, done))

@@ -74,6 +74,7 @@ class Agent:
         self.critic_optimizer.step()
 
 
+
 class MLPNetwork(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_dim=64, non_linear=nn.ReLU()):
         super(MLPNetwork, self).__init__()
