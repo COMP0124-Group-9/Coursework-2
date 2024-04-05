@@ -204,7 +204,6 @@ class Game:
                                                                      agent_id=agent,
                                                                      last_ball_position=last_ball_positions[agent],
                                                                      last_paddle_positions=last_paddle_positions[agent])
-                    print("next_observation_parsed.shape",next_observation_parsed.shape)
                     termination = terminations[agent]
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
