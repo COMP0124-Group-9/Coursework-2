@@ -76,16 +76,19 @@ class Agent:
 
 
 class MLPNetwork(nn.Module):
-    def __init__(self, in_dim, out_dim, hidden_dim=64, non_linear=nn.ReLU()):
+    def __init__(self, in_dim, out_dim, hidden_dim=1024, non_linear=nn.ReLU()):
         super(MLPNetwork, self).__init__()
 
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
-            non_linear,
-            nn.Linear(hidden_dim, hidden_dim),
-            non_linear,
-            nn.Linear(hidden_dim, out_dim),
-        ).apply(self.init)
+            non_linear
+        )
+        for _ in range(4):
+            self.net.append(nn.Linear(hidden_dim, hidden_dim))
+            self.net.append(non_linear)
+        self.net.append(nn.Linear(hidden_dim, out_dim))
+        self.net.cuda()
+        self.net.apply(self.init)
 
     @staticmethod
     def init(m):
@@ -96,4 +99,4 @@ class MLPNetwork(nn.Module):
             m.bias.data.fill_(0.01)
 
     def forward(self, x):
-        return self.net(x)
+        return self.net(x.cuda()).cpu()
