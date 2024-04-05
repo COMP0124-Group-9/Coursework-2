@@ -8,11 +8,13 @@ import torch
 
 import Network
 from Agent import Agent
+from RandomAgent import RandomAgent
+from TrainedAgent import TrainedAgent
 from Game import Game, EXPECTED_OBSERVATION_LENGTH, BLOCKS_PER_PLAYER, BALL_COORDINATE_SHAPE
 
 
-def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (24, -24 / 3, -24 / 3, -24 / 3),
-                           block_status_weights: Tuple[float, float, float, float] = (1, -1 / 3, -1 / 3, -1 / 3)) \
+def generate_reward_vector(base_status_weights: Tuple[float, float, float, float] = (1000, -1, -1, -1),
+                           block_status_weights: Tuple[float, float, float, float] = (1, -1, -1, -1)) \
         -> np.ndarray:
     player_rewards = []
     for player_index in range(4):
