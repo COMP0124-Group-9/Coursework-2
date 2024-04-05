@@ -123,9 +123,9 @@ class Game:
         player_areas = self.get_player_areas(game_area)
         player_statuses = []
         for player_index, player_area in enumerate(player_areas):
-            base_status = self.base_status(player_area)
+            base_status = self.base_status(player_area)*2-1
             paddle_boundary = self.paddle_boundary(player_area=player_area, player_index=player_index)
-            block_status = self.block_statuses(player_area)
+            block_status = self.block_statuses(player_area)*2-1
             player_statuses.append(np.concatenate((base_status,
                                                    paddle_boundary,
                                                    paddle_boundary - last_paddle_positions[player_index],
@@ -194,7 +194,7 @@ class Game:
                 last_paddle_positions[agent][3] = last_observations_parsed[agent][100:104]
                 last_ball_positions[agent] = last_observations_parsed[agent][-8:-4]
 
-            observations, _, terminations, _, _ = env.step(actions)
+            observations, _, terminations, _, _ = env.step({agent: agent_dict[agent].filter_and_reverse_action(actions[agent]) for agent in agent_ids})
 
             for agent in agent_ids:
                 if agent in observations.keys():
@@ -208,9 +208,9 @@ class Game:
                         final_observations[agent] = observations[agent]
                 else:
                     next_observation_parsed = last_observations_parsed[agent]
-                    next_observation_parsed[0] = 0
+                    next_observation_parsed[0] = -1
                     termination = True
-                    reward = -1e20
+                    reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     observations[agent] = final_observations[agent]
                 agent_dict[agent].add_to_buffer(last_observations_parsed[agent],
                                                 actions[agent],
