@@ -16,9 +16,12 @@ class Agent:
                  reversed_controls: bool,
                  reward_vector: np.ndarray = np.ones(EXPECTED_OBSERVATION_LENGTH)):
         self.reversed_controls = reversed_controls
-        self.win_count = 0
-        self.position = 0
         self.__reward_vector = reward_vector
+
+        # Counters for metrics
+        self.num_ball_in_area = 0
+        self.blocks_destroyed = 0
+        self.bases_destroyed = 0
 
         self.epsilon = 1
         self.epsilon_decay = 0.99999
@@ -40,6 +43,11 @@ class Agent:
         self.buffer = Buffer(self.buffer_capacity)
 
         assert self.__reward_vector.shape == (EXPECTED_OBSERVATION_LENGTH,)
+
+    def reset_count_metrics(self):
+        self.num_ball_in_area = 0
+        self.block_destroyed = 0
+        self.base_destroyed = 0
 
     def reward(self, observation: np.ndarray, paddle_ball_weight: float = 2e1) -> np.ndarray:
         paddle_mean_position = observation[1:5].reshape(2, 2).sum(axis=0) / 2

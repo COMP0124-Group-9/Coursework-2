@@ -53,6 +53,7 @@ def main():
             game_count += 1
             print(f"finished in {time.time() - start_time} seconds")
             print([agent.epsilon for agent in agents])
+            game.print_metrics()
     except KeyboardInterrupt:
         path = model_path / datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         if not path.parent.exists():
