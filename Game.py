@@ -33,6 +33,10 @@ class Game:
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
+
+        self.num_games = 0
+        self.metrics = {}
+
         # MADDPG setup
         self.step = 0
         obs_dim = EXPECTED_OBSERVATION_LENGTH
@@ -42,6 +46,17 @@ class Game:
         self.maddpg = MADDPG(dim_info, capacity=10000, batch_size=64, actor_lr=1e-4, critic_lr=1e-3,
                              res_dir="./results")
 
+    def init_metrics(self, agent_ids):
+        self.num_games += 1
+        self.ball_last_touch = None
+        self.ball_current_position = None
+        self.ball_current_velocity = None
+        self.ball_current_quadrant = 1
+        self.ball_last_quadrant = 1
+        for agent_id in agent_ids:
+            if agent_id not in list(self.metrics.keys()):
+                self.metrics[agent_id] = np.zeros((6)) # win_rate, average position, average_survival_time, average_blocks_destroyed, average_base_destroyed, ball_missed_ratio
+                
     @staticmethod
     def get_game_area(observation: np.ndarray) -> np.ndarray:
         return observation[16:-28, :, :]
@@ -128,6 +143,101 @@ class Game:
             result = np.array([xs.min(), ys.min(), xs.max() + 1, ys.max() + 1])
         assert result.shape == (4,)
         return result
+    
+    def update_ball_position(self, observation):
+
+        game_area = self.get_game_area(observation)
+        boundary = self.ball_boundary(game_area)
+        if boundary.all() == -1:
+            return None
+        else:
+            center_x = (boundary[0] + boundary[2]) / 2
+            center_y = (boundary[1] + boundary[3]) / 2
+            self.ball_last_quadrant = self.ball_current_quadrant
+            if center_x <= 80:
+                if center_y <= 88:
+                    self.ball_current_quadrant = 0
+                else:
+                    self.ball_current_quadrant = 2
+            else:
+                if center_y <= 88:
+                    self.ball_current_quadrant = 1
+                else:
+                    self.ball_current_quadrant = 3
+            self.ball_last_velocity = self.ball_current_velocity
+            self.ball_last_position = self.ball_current_position
+            self.ball_current_position = boundary
+            if self.ball_last_position is not None:
+                self.ball_current_velocity = self.ball_current_position[0] - self.ball_last_position[0]
+            return boundary
+        
+    def is_base_destroyed(self, observations, last_observations):
+        game_area = self.get_game_area(list(observations.values())[0])
+        player_areas = self.get_player_areas(game_area)
+        for player_index, player_area in enumerate(player_areas):
+            base_status = self.base_status(player_area)
+            last_base_status = last_observations[list(last_observations.keys())[player_index]][0]
+            if base_status != last_base_status:
+                return True
+        return False
+    
+    def is_block_destroyed(self, observations, last_observations):
+        game_area = self.get_game_area(list(observations.values())[0])
+        player_areas = self.get_player_areas(game_area)
+        for player_index, player_area in enumerate(player_areas):
+            blocks_status = self.block_statuses(player_area)
+            last_blocks_status = last_observations[list(last_observations.keys())[player_index]][5:29]
+            if not np.array_equal(blocks_status, last_blocks_status):
+                return True
+        return False
+    
+    def check_ball_touch(self, observations, last_observations, agent_dict):
+        
+        object_touched = None
+        boundary = self.update_ball_position(list(observations.values())[0])
+        agent_ids = ["first_0","second_0","third_0","fourth_0"]
+        
+        if self.ball_current_velocity != self.ball_last_velocity and self.ball_last_quadrant == self.ball_current_quadrant:
+            if self.is_base_destroyed(observations, last_observations):
+                object_touched = "base"
+            elif self.is_block_destroyed(observations, last_observations):
+                object_touched = "block"
+            elif boundary is None:
+                object_touched = agent_ids[self.ball_last_quadrant]
+            elif self.is_wall_touched(boundary):
+                object_touched = "wall"
+            else:
+                object_touched = agent_ids[self.ball_last_quadrant]
+
+        if object_touched and self.ball_last_touch in list(agent_dict.keys()):
+            self.update_agent_destruction_metrics(agent_dict[self.ball_last_touch], object_touched)
+        
+        self.ball_last_touch = object_touched
+
+    def update_agent_destruction_metrics(self, agent, destroyed):
+        if destroyed == "block":
+            print("block!")
+            agent.blocks_destroyed += 1
+        elif destroyed == "base":
+            print("base!")
+            agent.bases_destroyed += 1
+        
+    def update_average_agent_metrics(self, agent_id, agent, position):
+        self.metrics[agent_id][0] = (self.metrics[agent_id][0] * (self.num_games - 1) + (position == 1)) / self.num_games
+        self.metrics[agent_id][1] = (self.metrics[agent_id][1] * (self.num_games - 1) + position) / self.num_games
+        self.metrics[agent_id][2] = (self.metrics[agent_id][2] * (self.num_games - 1) + self.step_count) / self.num_games
+        self.metrics[agent_id][3] = (self.metrics[agent_id][3] * (self.num_games - 1) + agent.blocks_destroyed) / self.num_games
+        self.metrics[agent_id][4] = (self.metrics[agent_id][4] * (self.num_games - 1) + agent.bases_destroyed) / self.num_games
+        agent.reset_count_metrics()
+
+    def print_metrics(self):
+        for agent in list(self.metrics.keys()):
+            print(f"--- Agent {agent} Metrics ----")
+            print(f"Win Rate: {round(self.metrics[agent][0],2)}")
+            print(f"Average Position: {round(self.metrics[agent][1],3)}")
+            print(f"Average Survival Time: {round(self.metrics[agent][2],3)}")
+            print(f"Average Blocks Destroyed: {round(self.metrics[agent][3],3)}")
+            print(f"Average Bases Destroyed: {round(self.metrics[agent][4],3)}\n")
 
     def parse_observation(self,
                           observation: np.ndarray,
@@ -146,7 +256,6 @@ class Game:
                                                    paddle_boundary - last_paddle_positions[player_index],
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
-        # TODO correct ball boundary transform
         if agent_id == "first_0":
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
@@ -186,6 +295,7 @@ class Game:
         observations, _ = env.reset()
         agent_ids = env.agents
         assert len(agent_ids) == len(self.agent_list)
+        self.init_metrics(agent_ids)
         agent_dict = self.get_agent_dict(agent_ids=agent_ids)
         last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
         last_paddle_positions = {agent_id: [np.array([-1, -1, -1, -1]) for _ in range(len(agent_ids))]
@@ -196,6 +306,9 @@ class Game:
                                                                   last_paddle_positions=last_paddle_positions[agent])
                                     for agent in agent_ids}
         final_observations = {}
+
+        self.step_count = 1
+        self.agents_alive = np.array(agent_ids)
 
         while env.agents:
             actions = {agent: self.get_action(agent_dict=agent_dict,
@@ -211,6 +324,8 @@ class Game:
 
             observations, _, terminations, _, _ = env.step({agent: agent_dict[agent].filter_and_reverse_action(actions[agent]) for agent in agent_ids})
 
+            self.check_ball_touch(observations, last_observations_parsed, agent_dict) # observations, last_observations, agent_dict
+
             for agent in agent_ids:
                 if agent in observations.keys():
                     next_observation_parsed = self.parse_observation(observation=observations[agent],
@@ -220,6 +335,18 @@ class Game:
                     termination = terminations[agent]
                     if termination:
                         final_observations[agent] = observations[agent]
+                        if len(self.agents_alive) == 2:
+                            second = agent_ids[self.ball_last_quadrant]
+                            self.update_average_agent_metrics(second, agent_dict[second], 2)
+                            idx = np.where(self.agents_alive == second)[0]
+                            self.agents_alive = np.delete(self.agents_alive, idx)
+                            winner = self.agents_alive[0]
+                            self.update_average_agent_metrics(winner, agent_dict[winner], 1)
+                            self.agents_alive = []
+                        elif len(self.agents_alive) > 2:
+                            self.update_average_agent_metrics(agent, agent_dict[agent], len(self.agents_alive))
+                            idx = np.where(self.agents_alive == agent)[0]
+                            self.agents_alive = np.delete(self.agents_alive, idx)
                 else:
                     next_observation_parsed = last_observations_parsed[agent]
                     next_observation_parsed[0] = -1
@@ -233,6 +360,8 @@ class Game:
                                                 termination)
                 agent_dict[agent].train()
                 last_observations_parsed[agent] = next_observation_parsed
+
+            self.step_count += 1
         env.close()
 
 
