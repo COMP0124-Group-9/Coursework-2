@@ -335,6 +335,11 @@ class Game:
                     termination = terminations[agent]
                     if termination:
                         final_observations[agent] = observations[agent]
+                        if len(self.agents_alive) <= 2:
+                            if agent_ids[self.ball_last_quadrant] == agent:
+                                next_observation_parsed[0] = -1
+                            else:
+                                next_observation_parsed[[33, 66, 99]] = -1
                         if len(self.agents_alive) == 2:
                             second = agent_ids[self.ball_last_quadrant]
                             self.update_average_agent_metrics(second, agent_dict[second], 2)

@@ -51,6 +51,8 @@ class Agent:
 
     def reward(self, observation: np.ndarray, paddle_ball_weight: float = 2e1) -> np.ndarray:
         reward = (self.__reward_vector @ ((1 - observation) / 2)).sum()
+        if observation[0] == 1 and np.all(observation[[33, 66, 99]] == -1):
+            reward += -self.__reward_vector[0]
         assert reward.shape == ()
         return reward
 
