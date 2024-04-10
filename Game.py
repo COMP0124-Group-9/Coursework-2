@@ -1,5 +1,6 @@
 from typing import Tuple, Dict, List
 
+import PIL.Image
 import numpy as np
 import supersuit
 from pettingzoo.atari import warlords_v3
@@ -25,6 +26,10 @@ class Game:
                                         [[0, 0, 0],
                                          [170, 170, 170]]))
     _ball_width = 2
+    __block_colours = [(148, 0, 0),
+                       (200, 72, 72),
+                       (167, 26, 26),
+                       (184, 50, 50)]
 
     def __init__(self, agent_list: List[Agent]) -> None:
         self.agent_list = agent_list
@@ -52,8 +57,7 @@ class Game:
                 np.flip(game_area[quadrant_height:, :quadrant_width], axis=0),
                 np.flip(game_area[quadrant_height:, quadrant_width:], axis=(0, 1)))
 
-    @staticmethod
-    def process_blocks(segment: np.ndarray, block_height: int, block_width: int) -> List[bool]:
+    def process_blocks(self, segment: np.ndarray, block_height: int, block_width: int) -> List[bool]:
         block_statuses: List[bool] = []
         segment_height, segment_width, _ = segment.shape
         assert segment_height % block_height == 0
@@ -61,7 +65,8 @@ class Game:
         for segment_row in np.split(segment, segment.shape[0] // block_height, axis=0):
             for block in np.split(segment_row, segment_row.shape[1] // block_width, axis=1):
                 assert block.shape == (block_height, block_width, 3)
-                block_statuses.append(np.any(block))
+                colour_count, colour = PIL.Image.fromarray(block).getcolors()[0]
+                block_statuses.append(colour_count == block_height * block_width and colour in self.__block_colours)
         return block_statuses
 
     def block_statuses(self, player_area: np.ndarray) -> np.ndarray:
@@ -213,15 +218,14 @@ class Game:
                                                                      last_ball_position=last_ball_positions[agent],
                                                                      last_paddle_positions=last_paddle_positions[agent])
                     termination = terminations[agent]
-                    reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
                         final_observations[agent] = observations[agent]
                 else:
                     next_observation_parsed = last_observations_parsed[agent]
                     next_observation_parsed[0] = -1
                     termination = True
-                    reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     observations[agent] = final_observations[agent]
+                reward = agent_dict[agent].reward(observation=next_observation_parsed)
                 agent_dict[agent].add_to_buffer(last_observations_parsed[agent],
                                                 actions[agent],
                                                 reward,

@@ -3,3 +3,4 @@ pettingzoo[atari]
 torch
 numpy
 supersuit
+pillow

@@ -11,13 +11,13 @@ class QNetworkFC(nn.Module):
         super().__init__()
         self.input_shape = input_shape
         self.num_actions = num_actions
-        size = 2048
-        self.network = nn.Sequential(nn.Linear(self.input_shape + 1, size),
+        size = int(4e3)
+        self.network = nn.Sequential(nn.Linear(self.input_shape, size),
                                      nn.ReLU())
-        for _ in range(8):
+        for _ in range(4):
             self.network.append(nn.Linear(size, size))
             self.network.append(nn.ReLU())
-        self.network.append(nn.Linear(size, 1))
+        self.network.append(nn.Linear(size, num_actions))
 
     def forward(self, x: torch.Tensor):
         if x.ndim == 1:
@@ -25,15 +25,16 @@ class QNetworkFC(nn.Module):
         assert x.ndim == 2
         assert x.shape[1] == self.input_shape
         x_count = x.shape[0]
-        x = x.unsqueeze(dim=1)
-        assert x.shape == (x_count, 1, self.input_shape)
-        x = x.repeat((1, self.num_actions, 1))
-        assert x.shape == (x_count, self.num_actions, self.input_shape)
-        action_list = torch.arange(self.num_actions).reshape(1, -1, 1).repeat(x_count, 1, 1).to(x.device)
-        assert action_list.shape == (x_count, self.num_actions, 1)
-        x = torch.concatenate((x, action_list), dim=-1)
-        assert x.shape == (x_count, self.num_actions, self.input_shape + 1)
-        result = self.network(x).squeeze(dim=-1)
+        # x = x.unsqueeze(dim=1)
+        # assert x.shape == (x_count, 1, self.input_shape)
+        # x = x.repeat((1, self.num_actions, 1))
+        # assert x.shape == (x_count, self.num_actions, self.input_shape)
+        # action_list = torch.arange(self.num_actions).reshape(1, -1, 1).repeat(x_count, 1, 1).to(x.device)
+        # assert action_list.shape == (x_count, self.num_actions, 1)
+        # x = torch.concatenate((x, action_list), dim=-1)
+        # assert x.shape == (x_count, self.num_actions, self.input_shape + 1)
+        # result = self.network(x).squeeze(dim=-1)
+        result=self.network(x)
         assert result.shape == (x_count, self.num_actions)
         return result
 
