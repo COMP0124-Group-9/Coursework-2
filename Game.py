@@ -256,6 +256,8 @@ class Game:
                                                    paddle_boundary - last_paddle_positions[player_index],
                                                    block_status)))
         ball_boundary = self.ball_boundary(game_area)
+        if np.all(ball_boundary == -1):
+            ball_boundary = last_ball_position
         if agent_id == "first_0":
             ball_boundary = ball_boundary
             ordered_player_statuses = np.concatenate(player_statuses)
