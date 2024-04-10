@@ -9,7 +9,8 @@ EXPECTED_OBSERVATION_LENGTH = 140
 
 class Agent:
     __expected_observation_length = EXPECTED_OBSERVATION_LENGTH
-    possible_actions = np.arange(4)
+    action_selection = [12, 4, 0, 1, 3, 11]
+    possible_actions = np.arange(len(action_selection))
 
     def __init__(self,
                  model,
@@ -26,11 +27,10 @@ class Agent:
         self.epsilon = 1
         self.epsilon_decay = 0.99999
         self.min_epsilon = 0.1
-        self.gamma = 0.94
-        # self.learning_rate = 0.000000001
-        self.learning_rate = 0.000000001
-        self.batch_size = 128
-        self.buffer_capacity = 10000
+        self.gamma = 0.3
+        self.learning_rate = 0.00000001
+        self.batch_size = 2**7
+        self.buffer_capacity = self.batch_size*100
 
         # TODO later: add target network? add epsilon decay?
 
@@ -50,22 +50,12 @@ class Agent:
         self.base_destroyed = 0
 
     def reward(self, observation: np.ndarray, paddle_ball_weight: float = 2e1) -> np.ndarray:
-        paddle_mean_position = observation[1:5].reshape(2, 2).sum(axis=0) / 2
-        ball_mean_position = observation[-8:-4].reshape(2, 2).sum(axis=0) / 2
-        ball_base_distance = np.sqrt(np.square(ball_mean_position).sum())
-        paddle_ball_distance = np.sqrt(np.square(paddle_mean_position - ball_mean_position).sum())
-        reward = (self.__reward_vector @ observation).sum()
-        # if -1 not in ball_mean_position:
-        #     if paddle_ball_distance == 0:
-        #         reward += 4
-        #     else:
-        #         reward += min(np.log(2e1 / paddle_ball_distance), 4)
-            # reward += np.log(ball_base_distance/5e1)
+        reward = (self.__reward_vector @ ((1 - observation) / 2)).sum()
         assert reward.shape == ()
         return reward
 
     def filter_and_reverse_action(self, action):
-        action = [3,4,11,12][action]
+        action = self.action_selection[action]
         if self.reversed_controls:
             return [0, 1, 2, 4, 3, 5, 7, 6, 9, 8, 10, 12, 11, 13, 15, 14, 17, 16][action]
         return action
@@ -83,7 +73,6 @@ class Agent:
                 action_probs = self.model(state)
                 assert action_probs.shape == (1, len(self.possible_actions))
                 action = action_probs.argmax().item()
-                print(action, action_probs)
         assert action in self.possible_actions
         return action
 
@@ -108,6 +97,7 @@ class Agent:
         current_Q = self.model(state_batch).gather(1, action_batch)
         next_Q = reward_batch + (1 - done_batch) * self.gamma * self.model(next_state_batch).max(1)[0].view(-1, 1)
         loss = self.loss(next_Q, current_Q)
+        print(loss)
         self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
         self.optimizer.zero_grad()
