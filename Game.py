@@ -197,7 +197,6 @@ class Game:
         boundary = self.update_ball_position(list(observations.values())[0])
         agent_ids = ["first_0","second_0","third_0","fourth_0"]
         
-        print(self.ball_current_velocity != self.ball_last_velocit, self.ball_last_quadrant == self.ball_current_quadrant)
         if self.ball_current_velocity != self.ball_last_velocity and self.ball_last_quadrant == self.ball_current_quadrant:
             if self.is_base_destroyed(observations, last_observations):
                 object_touched = "base"
