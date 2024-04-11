@@ -197,6 +197,7 @@ class Game:
         boundary = self.update_ball_position(list(observations.values())[0])
         agent_ids = ["first_0","second_0","third_0","fourth_0"]
         
+        print(self.ball_current_velocity != self.ball_last_velocit, self.ball_last_quadrant == self.ball_current_quadrant)
         if self.ball_current_velocity != self.ball_last_velocity and self.ball_last_quadrant == self.ball_current_quadrant:
             if self.is_base_destroyed(observations, last_observations):
                 object_touched = "base"
@@ -378,6 +379,7 @@ class Game:
         env = supersuit.frame_skip_v0(env, 4)
         observations, _ = env.reset()
         agent_ids = env.agents
+        self.init_metrics(agent_ids)
         assert len(agent_ids) == len(self.agent_list)
         agent_dict = self.get_agent_dict(agent_ids=agent_ids)
         last_ball_positions = {agent_id: np.array([-1, -1, -1, -1]) for agent_id in agent_ids}
@@ -389,6 +391,9 @@ class Game:
                                                                   last_paddle_positions=last_paddle_positions[agent])
                                     for agent in agent_ids}
         final_observations = {}
+
+        self.step_count = 1
+        self.agents_alive = np.array(agent_ids)
 
         while env.agents:
             self.step += 1
@@ -408,6 +413,9 @@ class Game:
 
             observations, _, terminations, _, _ = env.step(
                 {agent: agent_dict[agent].filter_and_reverse_action(actions[agent]) for agent in agent_ids})
+            
+            self.check_ball_touch(observations, last_observations_parsed, agent_dict) # observations, last_observations, agent_dict
+
             rewards_dict = {}
             next_observation_parsed_dict = {}
             for agent in agent_ids:
@@ -420,6 +428,23 @@ class Game:
                     reward = agent_dict[agent].reward(observation=next_observation_parsed)
                     if termination:
                         final_observations[agent] = observations[agent]
+                        if len(self.agents_alive) <= 2:
+                            if agent_ids[self.ball_last_quadrant] == agent:
+                                next_observation_parsed[0] = -1
+                            else:
+                                next_observation_parsed[[33, 66, 99]] = -1
+                        if len(self.agents_alive) == 2:
+                            second = agent_ids[self.ball_last_quadrant]
+                            self.update_average_agent_metrics(second, agent_dict[second], 2)
+                            idx = np.where(self.agents_alive == second)[0]
+                            self.agents_alive = np.delete(self.agents_alive, idx)
+                            winner = self.agents_alive[0]
+                            self.update_average_agent_metrics(winner, agent_dict[winner], 1)
+                            self.agents_alive = []
+                        elif len(self.agents_alive) > 2:
+                            self.update_average_agent_metrics(agent, agent_dict[agent], len(self.agents_alive))
+                            idx = np.where(self.agents_alive == agent)[0]
+                            self.agents_alive = np.delete(self.agents_alive, idx)
                 else:
                     next_observation_parsed = last_observations_parsed[agent]
                     next_observation_parsed[0] = -1
@@ -442,6 +467,8 @@ class Game:
                 # Learning step
                 self.maddpg.learn(1024, 0.999)
                 self.maddpg.update_target(0.01)
+
+            self.step_count += 1
 
         env.close()
 
