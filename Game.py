@@ -6,6 +6,7 @@ import supersuit
 from pettingzoo.atari import warlords_v3
 
 from Agent import Agent, EXPECTED_OBSERVATION_LENGTH
+from RandomAgent import RandomAgent
 
 from madppg.MADDPG import MADDPG
 
@@ -402,7 +403,9 @@ class Game:
             # Select actions using MADDPG
             else:
                 actions = self.maddpg.select_action(last_observations_parsed)
-                print(actions)
+                for agent in agent_dict.keys():
+                    if isinstance(agent_dict[agent], RandomAgent):
+                        actions[agent] = np.random.randint(len(Agent.possible_actions))
             for agent in agent_ids:
                 last_paddle_positions[agent][0] = last_observations_parsed[agent][1:5]
                 last_paddle_positions[agent][1] = last_observations_parsed[agent][34:38]
