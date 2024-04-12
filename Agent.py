@@ -27,7 +27,7 @@ class Agent:
         self.epsilon = 1
         self.epsilon_decay = 0.99999
         self.min_epsilon = 0.1
-        self.gamma = 0.3
+        self.gamma = 0.9
         self.learning_rate = 0.00000001
         self.batch_size = 2**7
         self.buffer_capacity = self.batch_size*100
