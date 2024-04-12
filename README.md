@@ -2,7 +2,7 @@
 
 Produced for COMP0124 Multi-agent Artificial Intelligence for an investigation into the beahviour of two MARL techniques in the 'Atari Warlords' game environment.
 
-All required dependencies are listed in `requirements.txt`
+All required dependencies are listed in `requirements.txt`. Python 3.8 was used successfuly, while later Python versions exhbiti dependency issues.
 
 Warlords ROM can be acquired using AutoROM by running the `AutoROM` command in the root directory once dependencies are installed.
 
